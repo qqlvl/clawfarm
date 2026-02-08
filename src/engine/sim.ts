@@ -1,15 +1,25 @@
-﻿import { Rng } from './random';
-import { Agent, Farm, LogEntry, SimConfig, SimState, StepResult, Tile } from './types';
+import { Rng } from './random';
+import { Agent, Farm, LogEntry, Season, SimConfig, SimState, StepResult, Tile } from './types';
+import { CROP_DEFS } from './crops';
+import { rollForEvent, applyInstantEvent } from './events';
+import { AgentAI } from './agent-ai';
 
 const DEFAULT_CONFIG: SimConfig = {
   farmSize: 10,
   farmsPerRow: 10,
   farmsPerCol: 10,
   seed: 1337,
-  tickRate: 6
+  tickRate: 6,
+  seasonLength: 360,
+  eventChance: 0.003,
+  startingCoins: 50,
+  startingSeeds: { radish: 5, potato: 3, wheat: 3 }
 };
 
 const AGENT_EMOJIS = ['🧑', '👩‍🌾', '🧑', '🧑', '🧑'];
+const SEASON_ORDER: Season[] = ['spring', 'summer', 'autumn', 'winter'];
+
+const ai = new AgentAI();
 
 export class SimEngine {
   private rng: Rng;
@@ -32,6 +42,23 @@ export class SimEngine {
     return this.config;
   }
 
+  getFarmTiles(farmId: string): { farm: Farm; tiles: Tile[]; agents: Agent[] } | null {
+    const farm = this.state.farms.find(f => f.id === farmId);
+    if (!farm) return null;
+
+    const tiles: Tile[] = [];
+    for (let ly = 0; ly < farm.height; ly++) {
+      for (let lx = 0; lx < farm.width; lx++) {
+        const wx = farm.x + lx;
+        const wy = farm.y + ly;
+        tiles.push(this.state.tiles[wy * this.state.width + wx]);
+      }
+    }
+
+    const agents = this.state.agents.filter(a => a.farmId === farmId);
+    return { farm, tiles, agents };
+  }
+
   reset(seed?: number): void {
     if (typeof seed === 'number') {
       this.config.seed = seed;
@@ -50,7 +77,14 @@ export class SimEngine {
       x: farm.x + Math.floor(farm.width / 2),
       y: farm.y + Math.floor(farm.height / 2),
       energy: 100,
-      emoji: AGENT_EMOJIS[(this.agentCounter - 2) % AGENT_EMOJIS.length]
+      emoji: AGENT_EMOJIS[(this.agentCounter - 2) % AGENT_EMOJIS.length],
+      inventory: {
+        coins: this.config.startingCoins,
+        seeds: { ...this.config.startingSeeds },
+        crops: {}
+      },
+      currentAction: 'idle',
+      goal: null
     };
 
     this.state.agents.push(agent);
@@ -70,56 +104,240 @@ export class SimEngine {
     const movedAgents: string[] = [];
     const changedTiles: number[] = [];
 
+    // 1. Season advancement
+    this.tickSeason();
+
+    // 2. Expire old events
+    this.state.events = this.state.events.filter(e =>
+      this.state.tick < e.startTick + e.duration
+    );
+
+    // 3. Roll for new events (only for farms with agents)
+    this.tickEvents();
+
+    // 4. Crop growth
+    this.tickCrops(changedTiles);
+
+    // 5. Agent AI
     for (const agent of this.state.agents) {
       const farm = this.state.farms.find(f => f.id === agent.farmId);
       if (!farm) continue;
 
-      const direction = this.rng.nextInt(0, 4);
-      let nx = agent.x;
-      let ny = agent.y;
+      const farmData = this.getFarmTiles(farm.id);
+      if (!farmData) continue;
 
-      if (direction === 0) ny -= 1;
-      if (direction === 1) ny += 1;
-      if (direction === 2) nx -= 1;
-      if (direction === 3) nx += 1;
+      const farmEvents = this.state.events.filter(e => e.farmId === farm.id);
 
-      if (nx < farm.x || nx >= farm.x + farm.width || ny < farm.y || ny >= farm.y + farm.height) {
-        continue;
-      }
+      const result = ai.decide(
+        agent, farm, farmData.tiles, this.config.farmSize,
+        this.state.season, farmEvents, this.rng, this.state.width
+      );
 
-      if (nx !== agent.x || ny !== agent.y) {
-        agent.x = nx;
-        agent.y = ny;
+      if (result.goal) {
+        agent.goal = result.goal;
+        agent.currentAction = result.goal.action;
+      } else {
+        agent.currentAction = 'idle';
+        // Random walk when idle
+        this.randomWalk(agent, farm);
         movedAgents.push(agent.id);
       }
 
-      if (this.rng.next() < 0.01) {
+      // Apply tile changes
+      for (const change of result.tileChanges) {
+        changedTiles.push(change.worldIndex);
+      }
+
+      // Energy
+      agent.energy = Math.max(0, Math.min(100, agent.energy - result.energyCost));
+      if (agent.currentAction === 'idle') {
+        agent.energy = Math.min(100, agent.energy + 0.2);
+      }
+
+      // Move toward goal target
+      if (agent.goal && (agent.x !== agent.goal.targetX || agent.y !== agent.goal.targetY)) {
+        this.moveAgentToward(agent, agent.goal.targetX, agent.goal.targetY, farm);
+        movedAgents.push(agent.id);
+      }
+
+      // Logs
+      for (const msg of result.logs) {
         this.pushLog({
           tick: this.state.tick,
-          message: `${agent.name} surveys the shoreline`,
-          level: 'info',
-          farmId: agent.farmId,
+          message: msg,
+          level: 'action',
+          farmId: farm.id,
           agentId: agent.id
         });
       }
     }
 
-    if (this.state.tick % 30 === 0) {
-      const agentCount = this.state.agents.length;
+    // Periodic status log
+    if (this.state.tick % 60 === 0) {
       this.pushLog({
         tick: this.state.tick,
-        message: `Tick ${this.state.tick} • Agents active: ${agentCount}`,
+        message: `Tick ${this.state.tick} • ${this.state.season} • Agents: ${this.state.agents.length}`,
         level: 'info'
       });
     }
 
     this.flushLogs();
 
-    return {
-      state: this.state,
-      changedTiles,
-      movedAgents
-    };
+    return { state: this.state, changedTiles, movedAgents };
+  }
+
+  private tickSeason(): void {
+    this.state.seasonTick += 1;
+    if (this.state.seasonTick >= this.config.seasonLength) {
+      this.state.seasonTick = 0;
+      const idx = SEASON_ORDER.indexOf(this.state.season);
+      this.state.season = SEASON_ORDER[(idx + 1) % 4];
+      this.pushLog({
+        tick: this.state.tick,
+        message: `Season changed to ${this.state.season}!`,
+        level: 'weather'
+      });
+    }
+  }
+
+  private tickEvents(): void {
+    for (const farm of this.state.farms) {
+      // Only roll events for farms with agents
+      if (!this.state.agents.some(a => a.farmId === farm.id)) continue;
+
+      const evt = rollForEvent(
+        farm.id, this.state.season, this.state.tick,
+        this.state.events, this.rng, this.config.eventChance
+      );
+
+      if (evt) {
+        this.state.events.push(evt);
+        const farmData = this.getFarmTiles(farm.id);
+        const agent = this.state.agents.find(a => a.farmId === farm.id);
+        if (farmData) {
+          const logs = applyInstantEvent(evt, farmData.tiles, agent, this.rng);
+          for (const msg of logs) {
+            this.pushLog({
+              tick: this.state.tick,
+              message: msg,
+              level: 'weather',
+              farmId: farm.id
+            });
+          }
+        }
+        this.pushLog({
+          tick: this.state.tick,
+          message: `${evt.name} on Farm ${farm.row + 1}-${farm.col + 1}!`,
+          level: 'event',
+          farmId: farm.id
+        });
+      }
+    }
+  }
+
+  private tickCrops(changedTiles: number[]): void {
+    const width = this.state.width;
+    for (let i = 0; i < this.state.tiles.length; i++) {
+      const tile = this.state.tiles[i];
+      if (tile.type !== 'farmland' || !tile.crop) continue;
+
+      const crop = tile.crop;
+      if (crop.stage === 'harvestable') continue;
+
+      const def = CROP_DEFS[crop.cropId];
+
+      // Moisture decay
+      if (!crop.watered) {
+        tile.moisture = Math.max(0, tile.moisture - def.waterNeed * 0.01);
+      }
+
+      // Growth rate
+      let growRate = 1.0 / def.growTicks;
+
+      // Season modifier
+      if (def.forbiddenSeasons.includes(this.state.season)) {
+        growRate = 0;
+        crop.health = Math.max(0, crop.health - 0.15);
+      } else if (!def.preferredSeasons.includes(this.state.season)) {
+        growRate *= 0.5;
+      }
+
+      // Moisture modifier
+      if (tile.moisture < 0.2) {
+        growRate *= 0.1;
+      } else if (tile.moisture < 0.5) {
+        growRate *= 0.5;
+      }
+
+      // Health modifier
+      growRate *= (crop.health / 100);
+
+      // Active events
+      for (const evt of this.state.events) {
+        if (evt.farmId === tile.farmId) {
+          if (evt.type === 'fairy_blessing') growRate *= 1.5;
+          if (evt.type === 'drought') tile.moisture = Math.max(0, tile.moisture - 0.008);
+        }
+      }
+
+      // Advance growth
+      const oldStage = crop.stage;
+      crop.growthProgress = Math.min(1.0, crop.growthProgress + growRate);
+
+      if (crop.growthProgress >= 1.0) crop.stage = 'harvestable';
+      else if (crop.growthProgress >= 0.7) crop.stage = 'mature';
+      else if (crop.growthProgress >= 0.4) crop.stage = 'growing';
+      else if (crop.growthProgress >= 0.15) crop.stage = 'sprout';
+      else crop.stage = 'seed';
+
+      if (crop.stage !== oldStage) {
+        changedTiles.push(i);
+      }
+
+      // Reset watered flag
+      crop.watered = false;
+
+      // Dead crop
+      if (crop.health <= 0) {
+        delete tile.crop;
+        changedTiles.push(i);
+      }
+    }
+  }
+
+  private moveAgentToward(agent: Agent, tx: number, ty: number, farm: Farm): void {
+    const dx = Math.sign(tx - agent.x);
+    const dy = Math.sign(ty - agent.y);
+
+    const attempts: { x: number; y: number }[] = [];
+    if (dx !== 0) attempts.push({ x: agent.x + dx, y: agent.y });
+    if (dy !== 0) attempts.push({ x: agent.x, y: agent.y + dy });
+
+    for (const pos of attempts) {
+      if (pos.x < farm.x || pos.x >= farm.x + farm.width) continue;
+      if (pos.y < farm.y || pos.y >= farm.y + farm.height) continue;
+      const tile = this.state.tiles[pos.y * this.state.width + pos.x];
+      if (tile.type === 'water') continue;
+      agent.x = pos.x;
+      agent.y = pos.y;
+      return;
+    }
+  }
+
+  private randomWalk(agent: Agent, farm: Farm): void {
+    const dir = this.rng.nextInt(0, 3);
+    let nx = agent.x;
+    let ny = agent.y;
+    if (dir === 0) ny -= 1;
+    if (dir === 1) ny += 1;
+    if (dir === 2) nx -= 1;
+    if (dir === 3) nx += 1;
+
+    if (nx < farm.x || nx >= farm.x + farm.width || ny < farm.y || ny >= farm.y + farm.height) return;
+    const tile = this.state.tiles[ny * this.state.width + nx];
+    if (tile.type === 'water') return;
+    agent.x = nx;
+    agent.y = ny;
   }
 
   private buildInitialState(): SimState {
@@ -132,7 +350,7 @@ export class SimEngine {
       for (let x = 0; x < width; x++) {
         const farmId = this.getFarmIdAt(x, y);
         tiles[this.index(x, y, width)] = {
-          type: this.pickBaseTileType(),
+          type: 'grass',
           farmId,
           moisture: 0
         };
@@ -148,7 +366,10 @@ export class SimEngine {
       tiles,
       farms,
       agents: [],
-      log: []
+      log: [],
+      season: 'spring',
+      seasonTick: 0,
+      events: []
     };
   }
 
@@ -158,8 +379,7 @@ export class SimEngine {
       for (let col = 0; col < this.config.farmsPerRow; col++) {
         farms.push({
           id: `farm-${row}-${col}`,
-          row,
-          col,
+          row, col,
           x: col * this.config.farmSize,
           y: row * this.config.farmSize,
           width: this.config.farmSize,
@@ -168,10 +388,6 @@ export class SimEngine {
       }
     }
     return farms;
-  }
-
-  private pickBaseTileType(): Tile['type'] {
-    return 'grass';
   }
 
   private carveLakes(tiles: Tile[], farms: Farm[], width: number): void {
@@ -207,21 +423,14 @@ export class SimEngine {
 
   private pickFarmForNewAgent(): Farm {
     const counts = new Map<string, number>();
-    for (const farm of this.state.farms) {
-      counts.set(farm.id, 0);
-    }
-    for (const agent of this.state.agents) {
-      counts.set(agent.farmId, (counts.get(agent.farmId) || 0) + 1);
-    }
+    for (const farm of this.state.farms) counts.set(farm.id, 0);
+    for (const agent of this.state.agents) counts.set(agent.farmId, (counts.get(agent.farmId) || 0) + 1);
 
     let best = this.state.farms[0];
     let bestCount = counts.get(best.id) || 0;
     for (const farm of this.state.farms) {
       const count = counts.get(farm.id) || 0;
-      if (count < bestCount) {
-        best = farm;
-        bestCount = count;
-      }
+      if (count < bestCount) { best = farm; bestCount = count; }
     }
     return best;
   }

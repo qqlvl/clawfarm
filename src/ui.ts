@@ -60,12 +60,12 @@ export class HUD {
       ? this.allLogs.filter(entry => entry.farmId === this.activeFarmId)
       : this.allLogs;
 
-    if (force) {
+    if (force || filtered.length < this.logCount) {
       this.logEl.innerHTML = '';
       this.logCount = 0;
     }
 
-    if (!force && filtered.length === this.logCount) return;
+    if (filtered.length === this.logCount) return;
 
     const newEntries = filtered.slice(this.logCount);
     for (const entry of newEntries) {

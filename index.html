@@ -1,34 +1,23 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GrowClaw Sim</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>GrowClaw</title>
   </head>
   <body>
     <div id="app">
-      <canvas id="game-canvas"></canvas>
-      <div id="hud">
-        <div class="row">
-          <div class="stat">Tick <span id="stat-tick">0</span></div>
-          <div class="stat">Agents <span id="stat-agents">0</span></div>
-          <div class="stat">FPS <span id="stat-fps">0</span></div>
-          <div class="stat">Farm <span id="stat-farm">-</span></div>
+      <nav id="top-nav">
+        <a href="#/" class="nav-brand">GrowClaw</a>
+        <div class="nav-links">
+          <span id="season-badge" class="season-badge"></span>
+          <a href="#/farms">Farms</a>
         </div>
-        <div class="row buttons">
-          <button id="btn-toggle">Pause</button>
-          <button id="btn-add">Add Agent</button>
-          <button id="btn-reset">Reset World</button>
-        </div>
-        <div class="row">
-          <label>
-            Tick rate
-            <input id="tick-rate" type="range" min="1" max="20" value="6" />
-            <span id="tick-rate-value">6/s</span>
-          </label>
-        </div>
-      </div>
-      <div id="log"></div>
+      </nav>
+      <main id="view-container"></main>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
