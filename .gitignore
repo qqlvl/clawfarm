@@ -1,0 +1,15 @@
+﻿# dependencies
+node_modules/
+
+# build output
+dist/
+
+# local tooling
+.tmp/
+.vscode/
+
+# misc
+.DS_Store
+*.log
+.env
+.vercel/

@@ -1,0 +1,120 @@
+:root {
+  color-scheme: only light;
+  font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  background: #0e0f13;
+  color: #e9eef3;
+  cursor: url("./assets/cursor.png") 0 0, auto;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #1b1f2a, #0b0c10 60%);
+  overflow: hidden;
+  cursor: url("./assets/cursor.png") 0 0, auto;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+#game-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: url("./assets/cursor.png") 0 0, auto;
+  image-rendering: pixelated;
+}
+
+#hud {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 280px;
+  padding: 14px;
+  background: rgba(13, 17, 23, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+  opacity: 0.82;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#hud:hover {
+  opacity: 1;
+}
+
+#hud .row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+#hud .row.buttons {
+  gap: 8px;
+}
+
+#hud .stat {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+#hud button {
+  flex: 1 1 auto;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #3f7a66;
+  color: #ecf6f1;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#hud button:hover {
+  background: #4a8e73;
+}
+
+#hud label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+#tick-rate {
+  width: 100%;
+}
+
+#log {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 320px;
+  max-height: 40vh;
+  overflow: auto;
+  padding: 12px;
+  background: rgba(10, 12, 18, 0.85);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+#log .entry {
+  margin-bottom: 6px;
+  color: #c7d4e1;
+}
+
+#log .entry strong {
+  color: #82f0b5;
+}
