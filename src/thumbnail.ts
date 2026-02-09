@@ -6,7 +6,8 @@ const TILE_COLORS: Record<string, string> = {
   grass: '#6ab04c',
   water: '#4a90c4',
   tree: '#4a8a3f',
-  farmland: '#9b7b3a'
+  farmland: '#9b7b3a',
+  house: '#8b6b42'
 };
 
 const FLOWER_HEX = ['#f7d854', '#ef476f', '#ffd166', '#e8e8e8', '#c084fc'];
@@ -15,16 +16,11 @@ const FENCE_COLOR = '#8b6b42';
 const POST_COLOR = '#6b4e2a';
 
 const CROP_DOT: Record<CropId, string> = {
-  radish: '#e74c3c',
-  potato: '#c8a05a',
-  carrot: '#e67e22',
   wheat: '#f1c40f',
-  tomato: '#e53935',
-  corn: '#f4d03f',
+  carrot: '#e67e22',
   pumpkin: '#e67e22',
-  strawberry: '#e84393',
-  cabbage: '#2ecc71',
-  rice: '#a4de6c'
+  crystal_flower: '#9b59b6',
+  golden_tree: '#f5d742'
 };
 
 const SEASON_OVERLAY: Record<Season, string> = {
@@ -87,7 +83,7 @@ export function renderFarmThumbnail(
 
       // Crop dots on farmland
       if (tile.type === 'farmland' && tile.crop) {
-        const dotColor = CROP_DOT[tile.crop.cropId] || '#88aa44';
+        const dotColor = tile.crop.health < 30 ? '#7a6a4a' : (CROP_DOT[tile.crop.cropId] || '#88aa44');
         ctx.fillStyle = dotColor;
         const dotSize = tile.crop.stage === 'harvestable' ? 4 :
                         tile.crop.stage === 'seed' ? 1 : 3;

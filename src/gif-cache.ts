@@ -23,7 +23,10 @@ export async function getAgentGifSources(): Promise<GifSource[]> {
       try {
         const response = await fetch(url);
         const buffer = await response.arrayBuffer();
-        sources.push(GifSource.from(buffer, { fps: 10 }));
+        const src = GifSource.from(buffer, { fps: 10 });
+        if (src && src.frames && src.frames.length > 0) {
+          sources.push(src);
+        }
       } catch {
         // skip failed avatar
       }

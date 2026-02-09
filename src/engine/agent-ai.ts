@@ -32,15 +32,22 @@ export class AgentAI {
       if (agent.goal.ticksRemaining === 0) {
         return this.executeGoal(agent, farm, tiles, farmSize, season, events, rng, worldWidth);
       }
+      // Give energy per tick while resting (not just on completion)
+      if (agent.goal.action === 'resting') {
+        const atHouse = this.getTileTypeAt(tiles, agent.x - farm.x, agent.y - farm.y, farmSize) === 'house';
+        return { goal: agent.goal, tileChanges: [], logs: [], energyCost: atHouse ? -8 : -2 };
+      }
       return { goal: agent.goal, tileChanges: [], logs: [], energyCost: 0 };
     }
 
-    // Rest if low energy
-    if (agent.energy < 15) {
+    // Rest if low energy — go to house for best recovery
+    if (agent.energy < 20) {
+      const houseWX = farm.x + farm.houseX;
+      const houseWY = farm.y + farm.houseY;
       return {
-        goal: { action: 'resting', targetX: agent.x, targetY: agent.y, ticksRemaining: 8 },
+        goal: { action: 'resting', targetX: houseWX, targetY: houseWY, ticksRemaining: 8 },
         tileChanges: [],
-        logs: [`${agent.name} rests to recover energy`],
+        logs: [`${agent.name} heads home to rest`],
         energyCost: 0
       };
     }
@@ -68,10 +75,14 @@ export class AgentAI {
           candidates.push({ action: 'harvesting', score: 100 - dist * 0.5, tx: wx, ty: wy, ticks: 2 });
         }
 
-        // Water dry crops
+        // Water dry crops — urgent if health dropping
         if (tile.type === 'farmland' && tile.crop && !tile.crop.watered && tile.moisture < 0.5
             && tile.crop.stage !== 'harvestable') {
-          candidates.push({ action: 'watering', score: 70 - dist * 0.5, tx: wx, ty: wy, ticks: 1 });
+          let waterScore = 70 - dist * 0.5;
+          // Boost priority for wilting crops
+          if (tile.crop.health < 50) waterScore += 30;
+          else if (tile.crop.health < 80) waterScore += 10;
+          candidates.push({ action: 'watering', score: waterScore, tx: wx, ty: wy, ticks: 1 });
         }
 
         // Plant on empty farmland
@@ -82,8 +93,8 @@ export class AgentAI {
           }
         }
 
-        // Till grass (not edges, not near water)
-        if (tile.type === 'grass' && lx > 0 && lx < farmSize - 1 && ly > 0 && ly < farmSize - 1) {
+        // Till grass (not edges, not near water/house)
+        if (tile.type === 'grass' && lx > 2 && lx < farmSize - 1 && ly > 2 && ly < farmSize - 1) {
           const farmlandCount = tiles.filter(t => t.type === 'farmland').length;
           if (farmlandCount < farmSize * farmSize * 0.35 && this.totalSeeds(agent) > 0) {
             candidates.push({ action: 'tilling', score: 30 - dist * 0.5, tx: wx, ty: wy, ticks: 3 });
@@ -98,7 +109,7 @@ export class AgentAI {
       candidates.push({ action: 'selling', score: 55, tx: agent.x, ty: agent.y, ticks: 2 });
     }
 
-    // Buy seeds if low
+    // Buy seeds if low — smart buying based on affordability
     if (this.totalSeeds(agent) < 3 && agent.inventory.coins >= 5) {
       candidates.push({ action: 'selling', score: 40, tx: agent.x, ty: agent.y, ticks: 1 });
     }
@@ -157,7 +168,7 @@ export class AgentAI {
           tile.moisture = 0.3;
           changes.push({ worldIndex: worldIdx, tile });
           logs.push(`${agent.name} tills the soil`);
-          energyCost = 3;
+          energyCost = 8;
         }
         break;
 
@@ -172,11 +183,12 @@ export class AgentAI {
               growthProgress: 0,
               planted: 0,
               watered: false,
-              health: 100
+              health: 100,
+              ticksSinceWatered: 0
             };
             changes.push({ worldIndex: worldIdx, tile });
             logs.push(`${agent.name} plants ${CROP_DEFS[goal.cropId].name}`);
-            energyCost = 2;
+            energyCost = 5;
           }
         }
         break;
@@ -185,9 +197,10 @@ export class AgentAI {
         if (tile && tile.crop) {
           tile.moisture = Math.min(1.0, tile.moisture + 0.4);
           tile.crop.watered = true;
+          tile.crop.ticksSinceWatered = 0;
           changes.push({ worldIndex: worldIdx, tile });
           logs.push(`${agent.name} waters the ${CROP_DEFS[tile.crop.cropId].name}`);
-          energyCost = 1;
+          energyCost = 3;
         }
         break;
 
@@ -200,7 +213,12 @@ export class AgentAI {
           delete tile.crop;
           changes.push({ worldIndex: worldIdx, tile });
           logs.push(`${agent.name} harvests ${qty} ${cropName}!`);
-          energyCost = 2;
+          energyCost = 5;
+          agent.stats.totalHarvests++;
+          agent.stats.consecutiveHarvests++;
+          if (agent.stats.consecutiveHarvests > agent.stats.bestStreak) {
+            agent.stats.bestStreak = agent.stats.consecutiveHarvests;
+          }
         }
         break;
 
@@ -218,14 +236,14 @@ export class AgentAI {
 
         if (earned > 0) {
           agent.inventory.coins += earned;
+          agent.stats.totalEarned += earned;
           logs.push(`${agent.name} sells crops for ${earned} coins${hasMarketDay ? ' (bonus!)' : ''}`);
         }
 
-        // Buy seeds with spare coins
-        if (agent.inventory.coins >= 10 && this.totalSeeds(agent) < 8) {
-          const available = ALL_CROP_IDS.filter(id => !CROP_DEFS[id].forbiddenSeasons.includes(season));
-          if (available.length > 0) {
-            const buyId = available[rng.nextInt(0, available.length - 1)];
+        // Buy seeds — prefer highest tier affordable
+        if (agent.inventory.coins >= 5 && this.totalSeeds(agent) < 8) {
+          const buyId = this.pickBestAffordableCrop(agent, season);
+          if (buyId) {
             const def = CROP_DEFS[buyId];
             const buyCount = Math.min(3, Math.floor(agent.inventory.coins / def.seedCost));
             if (buyCount > 0) {
@@ -235,19 +253,29 @@ export class AgentAI {
             }
           }
         }
-        energyCost = 1;
+        energyCost = 2;
         break;
       }
 
-      case 'resting':
-        energyCost = -15; // negative = gain energy
+      case 'resting': {
+        // Energy per tick (same as intermediate ticks)
+        const atHouse = this.getTileTypeAt(tiles, agent.x - farm.x, agent.y - farm.y, farmSize) === 'house';
+        energyCost = atHouse ? -8 : -2;
         break;
+      }
     }
 
     return { goal: null, tileChanges: changes, logs, energyCost };
   }
 
+  private getTileTypeAt(tiles: Tile[], lx: number, ly: number, farmSize: number): string {
+    if (lx < 0 || ly < 0 || lx >= farmSize || ly >= farmSize) return 'grass';
+    const tile = tiles[ly * farmSize + lx];
+    return tile ? tile.type : 'grass';
+  }
+
   private pickCrop(agent: Agent, season: Season): CropId | null {
+    // Pick from seeds the agent already has, prefer in-season
     const available = ALL_CROP_IDS.filter(id => {
       const count = agent.inventory.seeds[id] || 0;
       if (count <= 0) return false;
@@ -255,8 +283,26 @@ export class AgentAI {
     });
     if (available.length === 0) return null;
 
-    const preferred = available.filter(id => CROP_DEFS[id].preferredSeasons.includes(season));
-    return preferred.length > 0 ? preferred[0] : available[0];
+    // Prefer highest tier available seed that's in-season
+    const preferred = available.filter(id =>
+      CROP_DEFS[id].preferredSeasons.length === 0 || CROP_DEFS[id].preferredSeasons.includes(season)
+    );
+    const pool = preferred.length > 0 ? preferred : available;
+    pool.sort((a, b) => CROP_DEFS[b].tier - CROP_DEFS[a].tier);
+    return pool[0];
+  }
+
+  private pickBestAffordableCrop(agent: Agent, season: Season): CropId | null {
+    // Buy highest tier the agent can afford (at least 1 seed)
+    const affordable = ALL_CROP_IDS.filter(id => {
+      if (CROP_DEFS[id].forbiddenSeasons.includes(season)) return false;
+      return agent.inventory.coins >= CROP_DEFS[id].seedCost;
+    });
+    if (affordable.length === 0) return null;
+
+    // Sort by tier descending — buy highest tier possible
+    affordable.sort((a, b) => CROP_DEFS[b].tier - CROP_DEFS[a].tier);
+    return affordable[0];
   }
 
   private totalSeeds(agent: Agent): number {

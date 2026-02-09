@@ -1,7 +1,8 @@
 export type Route =
   | { view: 'landing' }
   | { view: 'farms'; page: number }
-  | { view: 'farm'; row: number; col: number };
+  | { view: 'farm'; row: number; col: number }
+  | { view: 'leaderboard' };
 
 export type RouteHandler = (route: Route) => void;
 
@@ -32,6 +33,10 @@ export class Router {
     if (hash.startsWith('#/farms')) {
       const pageMatch = hash.match(/page=(\d+)/);
       return { view: 'farms', page: pageMatch ? parseInt(pageMatch[1]) : 0 };
+    }
+
+    if (hash === '#/leaderboard') {
+      return { view: 'leaderboard' };
     }
 
     return { view: 'landing' };

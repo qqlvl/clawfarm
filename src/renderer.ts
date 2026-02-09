@@ -1,24 +1,45 @@
 import * as PIXI from 'pixi.js';
 import { GifSource, GifSprite } from 'pixi.js/gif';
-import { Agent, CropId, CropState, Farm, Season, SimState, Tile } from './engine/types';
+import { Agent, CropState, Farm, Season, SimState, Tile } from './engine/types';
 import { getAgentGifSources } from './gif-cache';
+import { SPRITE_URLS } from './sprite-urls';
+import tilemapPng from './assets/tiles/tilemap.png';
 
 const TILE_SIZE = 32;
-const AGENT_SCALE = 2.2;
+const AGENT_FALLBACK_SCALE = 1.0;
+const AGENT_TARGET_HEIGHT = TILE_SIZE * 1.15;
 
+// --- Atlas constants (Kenney grass tilemap) ---
+const ATLAS_COLS = 12;
+const ATLAS_PX = 16;
+const ATLAS_SPACING = 1;
+
+const T = {
+  GRASS_1: 0,
+  GRASS_2: 1,
+  GRASS_FLOWER: 2,
+  TREE_PINE: 4,
+  BUSH_ROUND: 5,
+  TREE_ROUND: 8,
+  MUSHROOM: 17,
+};
+
+// Season tints applied to tileset sprites (multiply-blend)
+const SEASON_SPRITE_TINT: Record<Season, number> = {
+  spring: 0xF4FFF0,
+  summer: 0xFFFAF0,
+  autumn: 0xFFF0D8,
+  winter: 0xE8F0FF
+};
+
+// --- Procedural fallback constants ---
 const TILE_COLOR: Record<Tile['type'], number> = {
   grass: 0x6ab04c,
   water: 0x4a90c4,
   tree: 0x4a8a3f,
-  farmland: 0x9b7b3a
+  farmland: 0x9b7b3a,
+  house: 0x8b6b42
 };
-
-const FLOWER_COLORS = [0xf7d854, 0xef476f, 0xffd166, 0xe8e8e8, 0xc084fc];
-
-const FENCE_RAIL = 0x8b6b42;
-const FENCE_POST = 0x6b4e2a;
-const FENCE_W = 2;
-const POST_SIZE = 4;
 
 const SEASON_TINT: Record<Season, { r: number; g: number; b: number }> = {
   spring: { r: 0, g: 8, b: 0 },
@@ -26,22 +47,6 @@ const SEASON_TINT: Record<Season, { r: number; g: number; b: number }> = {
   autumn: { r: 12, g: 2, b: -8 },
   winter: { r: -6, g: -2, b: 12 }
 };
-
-const CROP_FRUIT: Record<CropId, number> = {
-  radish: 0xe74c3c,
-  potato: 0xc8a05a,
-  carrot: 0xe67e22,
-  wheat: 0xf1c40f,
-  tomato: 0xe53935,
-  corn: 0xf4d03f,
-  pumpkin: 0xe67e22,
-  strawberry: 0xe84393,
-  cabbage: 0x2ecc71,
-  rice: 0xa4de6c
-};
-
-const STEM_GREEN = 0x4a8a3f;
-const LEAF_GREEN = 0x5cb85c;
 
 const EVENT_OVERLAY: Record<string, { color: number; alpha: number }> = {
   rain: { color: 0x3498db, alpha: 0.08 },
@@ -53,6 +58,12 @@ const EVENT_OVERLAY: Record<string, { color: number; alpha: number }> = {
 
 interface FarmStyle {
   tint: { r: number; g: number; b: number };
+}
+
+interface TileNode {
+  base: PIXI.Sprite;
+  crop: PIXI.Sprite;
+  gfx: PIXI.Graphics;
 }
 
 export interface FarmData {
@@ -69,10 +80,16 @@ export class FarmRenderer {
   private overlayLayer!: PIXI.Container;
   private agentLayer!: PIXI.Container;
   private agentGifSources: GifSource[] = [];
-  private tileSprites: PIXI.Graphics[] = [];
+  private tileNodes: TileNode[] = [];
   private agentDisplayPos = new Map<string, { x: number; y: number }>();
   private farmStyles = new Map<string, FarmStyle>();
   private currentFarmId: string | null = null;
+
+  // Tile atlas (Kenney grass tilemap)
+  private atlas: PIXI.Texture | null = null;
+  private texCache = new Map<number, PIXI.Texture>();
+  // Individual sprite textures (crops, terrain, house)
+  private spriteTextures = new Map<string, PIXI.Texture>();
 
   async init(canvas: HTMLCanvasElement): Promise<void> {
     this.app = new PIXI.Application();
@@ -93,6 +110,28 @@ export class FarmRenderer {
     this.app.stage.addChild(this.overlayLayer);
     this.app.stage.addChild(this.agentLayer);
 
+    // Load tile atlas
+    try {
+      this.atlas = await PIXI.Assets.load<PIXI.Texture>(tilemapPng);
+      this.atlas.source.scaleMode = 'nearest';
+    } catch {
+      console.warn('Tile atlas not loaded, using procedural tiles');
+    }
+
+    // Load individual sprite textures (crops, terrain, house)
+    try {
+      const entries = Object.entries(SPRITE_URLS);
+      const loaded = await Promise.all(
+        entries.map(([, url]) => PIXI.Assets.load<PIXI.Texture>(url))
+      );
+      for (let i = 0; i < entries.length; i++) {
+        loaded[i].source.scaleMode = 'nearest';
+        this.spriteTextures.set(entries[i][0], loaded[i]);
+      }
+    } catch (e) {
+      console.warn('Sprite textures not loaded', e);
+    }
+
     this.agentGifSources = await getAgentGifSources();
   }
 
@@ -111,10 +150,29 @@ export class FarmRenderer {
 
   destroy(): void {
     this.app?.destroy(true, { children: true });
-    this.tileSprites = [];
+    this.tileNodes = [];
     this.agentDisplayPos.clear();
     this.currentFarmId = null;
   }
+
+  // --- Atlas helpers ---
+
+  private atlasTex(idx: number): PIXI.Texture {
+    if (!this.atlas) return PIXI.Texture.EMPTY;
+    let t = this.texCache.get(idx);
+    if (t) return t;
+    const c = idx % ATLAS_COLS;
+    const r = Math.floor(idx / ATLAS_COLS);
+    const stride = ATLAS_PX + ATLAS_SPACING;
+    t = new PIXI.Texture({
+      source: this.atlas.source,
+      frame: new PIXI.Rectangle(c * stride, r * stride, ATLAS_PX, ATLAS_PX)
+    });
+    this.texCache.set(idx, t);
+    return t;
+  }
+
+  // --- Tile rendering ---
 
   private renderTiles(farmData: FarmData, state: SimState): void {
     const { farm, tiles } = farmData;
@@ -123,13 +181,39 @@ export class FarmRenderer {
 
     if (needsRebuild) {
       this.tileLayer.removeChildren();
-      this.tileSprites = [];
+      this.tileNodes = [];
       this.currentFarmId = farm.id;
 
       for (let i = 0; i < farmSize * farmSize; i++) {
-        const g = new PIXI.Graphics();
-        this.tileLayer.addChild(g);
-        this.tileSprites.push(g);
+        const ly = Math.floor(i / farmSize);
+        const lx = i % farmSize;
+        const px = lx * TILE_SIZE;
+        const py = ly * TILE_SIZE;
+
+        const base = new PIXI.Sprite();
+        base.x = px;
+        base.y = py;
+        base.width = TILE_SIZE;
+        base.height = TILE_SIZE;
+        base.roundPixels = true;
+        base.visible = false;
+
+        const crop = new PIXI.Sprite();
+        crop.x = px;
+        crop.y = py;
+        crop.width = TILE_SIZE;
+        crop.height = TILE_SIZE;
+        crop.roundPixels = true;
+        crop.visible = false;
+
+        const gfx = new PIXI.Graphics();
+        gfx.x = px;
+        gfx.y = py;
+
+        this.tileLayer.addChild(base);
+        this.tileLayer.addChild(crop);
+        this.tileLayer.addChild(gfx);
+        this.tileNodes.push({ base, crop, gfx });
       }
     }
 
@@ -139,14 +223,10 @@ export class FarmRenderer {
         const tile = tiles[idx];
         if (!tile) continue;
 
-        const g = this.tileSprites[idx];
-        g.clear();
-        g.x = lx * TILE_SIZE;
-        g.y = ly * TILE_SIZE;
-
+        const node = this.tileNodes[idx];
         const wx = farm.x + lx;
         const wy = farm.y + ly;
-        this.drawTile(g, tile, wx, wy, state, lx, ly, farmSize);
+        this.drawTile(node, tile, wx, wy, state, lx, ly, farmSize);
       }
     }
   }
@@ -169,176 +249,156 @@ export class FarmRenderer {
   }
 
   private drawTile(
-    g: PIXI.Graphics, tile: Tile, wx: number, wy: number,
+    node: TileNode, tile: Tile, wx: number, wy: number,
     state: SimState, lx: number, ly: number, farmSize: number
   ): void {
-    const style = this.getFarmStyle(tile.farmId);
+    const { base, crop, gfx } = node;
+    gfx.clear();
+    crop.visible = false;
+    base.width = TILE_SIZE;
+    base.height = TILE_SIZE;
+
     const n1 = this.tileNoise(wx, wy);
     const n2 = this.tileNoise(wx * 3 + 97, wy * 3 + 131);
+    const useSprites = !!this.atlas;
 
-    const baseColor = TILE_COLOR[tile.type] ?? TILE_COLOR.grass;
+    if (!useSprites) {
+      // Full procedural fallback (no atlas loaded)
+      base.visible = false;
+      this.drawTileProcedural(gfx, tile, wx, wy, n1, n2, state, lx, ly);
+      return;
+    }
 
-    // Combine farm tint + season tint
+    // --- Sprite-based rendering ---
+
+    if (tile.type === 'grass') {
+      let tileIdx: number;
+      const isInner = lx > 0 && lx < farmSize - 1 && ly > 0 && ly < farmSize - 1;
+
+      if (n2 > 0.92) {
+        tileIdx = T.GRASS_FLOWER;
+      } else if (isInner && n2 > 0.86 && n1 > 0.6) {
+        tileIdx = T.BUSH_ROUND;
+      } else if (isInner && n2 > 0.83 && n1 < 0.35) {
+        tileIdx = T.TREE_PINE;
+      } else if (isInner && n2 > 0.80 && n1 > 0.4 && n1 < 0.55) {
+        tileIdx = T.MUSHROOM;
+      } else {
+        tileIdx = n1 > 0.5 ? T.GRASS_1 : T.GRASS_2;
+      }
+
+      base.texture = this.atlasTex(tileIdx);
+      base.tint = SEASON_SPRITE_TINT[state.season];
+      base.visible = true;
+
+    } else if (tile.type === 'farmland') {
+      // Farmland base texture
+      const farmTex = this.spriteTextures.get('farmland');
+      if (farmTex) {
+        base.texture = farmTex;
+        base.visible = true;
+        // Moisture darkening
+        if (tile.moisture > 0) {
+          const d = Math.round(tile.moisture * 50);
+          const v = Math.max(0, 255 - d);
+          base.tint = (v << 16) | (v << 8) | v;
+        } else {
+          base.tint = 0xFFFFFF;
+        }
+      }
+
+      // Crop sprite — centered within tile, size varies by growth stage
+      if (tile.crop) {
+        const cropTex = this.getCropTexture(tile.crop);
+        if (cropTex) {
+          const pad = this.getCropPadding(tile.crop.stage);
+          const px = lx * TILE_SIZE;
+          const py = ly * TILE_SIZE;
+          crop.texture = cropTex;
+          crop.x = px + pad;
+          crop.y = py + pad;
+          crop.width = TILE_SIZE - pad * 2;
+          crop.height = TILE_SIZE - pad * 2;
+          crop.tint = 0xFFFFFF;
+          crop.visible = true;
+          // Harvestable glow
+          if (tile.crop.stage === 'harvestable' && tile.crop.health >= 50) {
+            gfx.rect(pad, pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2);
+            gfx.fill({ color: 0xf1c40f, alpha: 0.12 });
+          }
+        } else {
+          // Seed stage: tiny brown dot centered
+          gfx.circle(TILE_SIZE / 2, TILE_SIZE / 2, 2);
+          gfx.fill({ color: 0x8b6b42 });
+        }
+      }
+
+    } else if (tile.type === 'water') {
+      const waterTex = this.spriteTextures.get('water');
+      if (waterTex) {
+        base.texture = waterTex;
+        base.visible = true;
+        base.tint = SEASON_SPRITE_TINT[state.season];
+      }
+
+    } else if (tile.type === 'house') {
+      // Render single house sprite on top-left tile (1,1), scaled to 2x2
+      const houseTex = this.spriteTextures.get('house');
+      if (houseTex && lx === 1 && ly === 1) {
+        base.texture = houseTex;
+        base.width = TILE_SIZE * 2;
+        base.height = TILE_SIZE * 2;
+        base.visible = true;
+        base.tint = 0xFFFFFF;
+      } else {
+        // Other 3 house tiles — hidden (covered by the 2x2 sprite)
+        base.visible = false;
+      }
+    }
+  }
+
+  // --- Sprite helpers ---
+
+  private getCropTexture(cropState: CropState): PIXI.Texture | null {
+    if (cropState.health < 25) return this.spriteTextures.get('wilted_large') || null;
+    if (cropState.health < 50) return this.spriteTextures.get('wilted_small') || null;
+    if (cropState.stage === 'seed') return null; // procedural fallback
+    const key = `${cropState.cropId}_${cropState.stage}`;
+    return this.spriteTextures.get(key) || null;
+  }
+
+  private getCropPadding(stage: string): number {
+    switch (stage) {
+      case 'sprout': return 10;
+      case 'growing': return 7;
+      case 'mature': return 5;
+      case 'harvestable': return 4;
+      default: return 6;
+    }
+  }
+
+  // --- Procedural fallback (no atlas) ---
+
+  private drawTileProcedural(
+    gfx: PIXI.Graphics, tile: Tile, wx: number, wy: number,
+    n1: number, n2: number, state: SimState, lx: number, ly: number
+  ): void {
+    const style = this.getFarmStyle(tile.farmId);
     const sTint = SEASON_TINT[state.season];
     const combined = {
       r: style.tint.r + sTint.r,
       g: style.tint.g + sTint.g,
       b: style.tint.b + sTint.b
     };
-    const tintScale = tile.type === 'water' ? 0.15 : 0.12;
-    let color = this.tintColor(baseColor, combined, tintScale);
+    const baseColor = TILE_COLOR[tile.type] ?? TILE_COLOR.grass;
+    let color = this.tintColor(baseColor, combined, 0.12);
+    color = this.shiftColor(color, Math.round((n1 - 0.5) * 14));
 
-    const noiseRange = tile.type === 'water' ? 16 : tile.type === 'farmland' ? 10 : 14;
-    color = this.shiftColor(color, Math.round((n1 - 0.5) * noiseRange));
-
-    // Moisture darkening on farmland (wet soil = darker)
-    if (tile.type === 'farmland' && tile.moisture > 0) {
-      color = this.shiftColor(color, Math.round(-tile.moisture * 14));
-    }
-
-    const isWaterEdge = tile.type === 'water' && this.isWaterEdge(state, wx, wy);
-    if (isWaterEdge) color = this.shiftColor(color, -18);
-
-    // Base fill
-    g.rect(0, 0, TILE_SIZE, TILE_SIZE);
-    g.fill({ color });
-
-    if (tile.type === 'water') {
-      if (isWaterEdge) {
-        g.rect(0, 0, TILE_SIZE, TILE_SIZE);
-        g.stroke({ width: 1, color: 0x2a5f7a, alpha: 0.35 });
-      }
-    } else if (tile.type === 'farmland') {
-      const furrowColor = this.shiftColor(color, -14);
-      for (let row = 0; row < TILE_SIZE; row += 4) {
-        g.rect(0, row, TILE_SIZE, 2);
-        g.fill({ color: furrowColor, alpha: 0.4 });
-      }
-      if (tile.crop) {
-        this.drawCrop(g, tile.crop);
-      }
-    } else if (tile.type === 'grass') {
-      if (n2 > 0.7) {
-        const px = Math.floor(n1 * 24) + 4;
-        const py = Math.floor(n2 * 24) + 4;
-        g.rect(px, py, 4, 4);
-        g.fill({ color: this.shiftColor(color, -12) });
-      }
-      if (n2 > 0.92) {
-        const fi = Math.floor(n1 * FLOWER_COLORS.length);
-        const fx = Math.floor(this.tileNoise(wx * 7, wy * 11) * 26) + 3;
-        const fy = Math.floor(this.tileNoise(wx * 11, wy * 7) * 26) + 3;
-        g.rect(fx, fy, 3, 3);
-        g.fill({ color: FLOWER_COLORS[fi] });
-      }
-    }
-
-    // Fences
-    this.drawFence(g, lx, ly, farmSize);
+    gfx.rect(0, 0, TILE_SIZE, TILE_SIZE);
+    gfx.fill({ color });
   }
 
-  private drawCrop(g: PIXI.Graphics, crop: CropState): void {
-    const fruit = CROP_FRUIT[crop.cropId] ?? 0x88aa44;
-    const cx = 16; // center of 32px tile
-    const base = 28; // bottom of plant area
-
-    switch (crop.stage) {
-      case 'seed':
-        g.rect(cx - 1, base - 3, 3, 3);
-        g.fill({ color: 0x8b6b42 });
-        break;
-
-      case 'sprout':
-        g.rect(cx, base - 9, 2, 9);
-        g.fill({ color: STEM_GREEN });
-        g.rect(cx + 2, base - 8, 3, 2);
-        g.fill({ color: LEAF_GREEN });
-        break;
-
-      case 'growing':
-        g.rect(cx, base - 14, 2, 14);
-        g.fill({ color: STEM_GREEN });
-        g.rect(cx + 2, base - 12, 4, 2);
-        g.fill({ color: LEAF_GREEN });
-        g.rect(cx - 4, base - 9, 4, 2);
-        g.fill({ color: LEAF_GREEN });
-        break;
-
-      case 'mature':
-        g.rect(cx, base - 18, 2, 18);
-        g.fill({ color: STEM_GREEN });
-        g.rect(cx + 2, base - 15, 5, 2);
-        g.fill({ color: LEAF_GREEN });
-        g.rect(cx - 5, base - 12, 5, 2);
-        g.fill({ color: LEAF_GREEN });
-        g.rect(cx - 2, base - 22, 5, 4);
-        g.fill({ color: fruit });
-        break;
-
-      case 'harvestable':
-        g.rect(cx, base - 18, 2, 18);
-        g.fill({ color: STEM_GREEN });
-        g.rect(cx + 2, base - 15, 5, 2);
-        g.fill({ color: LEAF_GREEN });
-        g.rect(cx - 5, base - 12, 5, 2);
-        g.fill({ color: LEAF_GREEN });
-        // Glow
-        g.rect(cx - 4, base - 25, 9, 9);
-        g.fill({ color: fruit, alpha: 0.25 });
-        // Fruit
-        g.rect(cx - 3, base - 24, 7, 7);
-        g.fill({ color: fruit });
-        break;
-    }
-  }
-
-  private drawFence(g: PIXI.Graphics, lx: number, ly: number, farmSize: number): void {
-    const last = farmSize - 1;
-    const top = ly === 0;
-    const bottom = ly === last;
-    const left = lx === 0;
-    const right = lx === last;
-
-    if (!top && !bottom && !left && !right) return;
-
-    const S = TILE_SIZE;
-    const mid = Math.floor(S / 2);
-
-    if (top) {
-      g.rect(0, 0, S, FENCE_W);
-      g.fill({ color: FENCE_RAIL });
-      g.rect(0, Math.floor(S * 0.3), S, FENCE_W);
-      g.fill({ color: FENCE_RAIL, alpha: 0.7 });
-    }
-    if (bottom) {
-      g.rect(0, S - FENCE_W, S, FENCE_W);
-      g.fill({ color: FENCE_RAIL });
-      g.rect(0, S - Math.floor(S * 0.3), S, FENCE_W);
-      g.fill({ color: FENCE_RAIL, alpha: 0.7 });
-    }
-    if (left) {
-      g.rect(0, 0, FENCE_W, S);
-      g.fill({ color: FENCE_RAIL });
-      g.rect(Math.floor(S * 0.3), 0, FENCE_W, S);
-      g.fill({ color: FENCE_RAIL, alpha: 0.7 });
-    }
-    if (right) {
-      g.rect(S - FENCE_W, 0, FENCE_W, S);
-      g.fill({ color: FENCE_RAIL });
-      g.rect(S - Math.floor(S * 0.3), 0, FENCE_W, S);
-      g.fill({ color: FENCE_RAIL, alpha: 0.7 });
-    }
-
-    if (top || left) { g.rect(0, 0, POST_SIZE, POST_SIZE); g.fill({ color: FENCE_POST }); }
-    if (top || right) { g.rect(S - POST_SIZE, 0, POST_SIZE, POST_SIZE); g.fill({ color: FENCE_POST }); }
-    if (bottom || left) { g.rect(0, S - POST_SIZE, POST_SIZE, POST_SIZE); g.fill({ color: FENCE_POST }); }
-    if (bottom || right) { g.rect(S - POST_SIZE, S - POST_SIZE, POST_SIZE, POST_SIZE); g.fill({ color: FENCE_POST }); }
-
-    if (top) { g.rect(mid - 1, 0, POST_SIZE, POST_SIZE); g.fill({ color: FENCE_POST }); }
-    if (bottom) { g.rect(mid - 1, S - POST_SIZE, POST_SIZE, POST_SIZE); g.fill({ color: FENCE_POST }); }
-    if (left) { g.rect(0, mid - 1, POST_SIZE, POST_SIZE); g.fill({ color: FENCE_POST }); }
-    if (right) { g.rect(S - POST_SIZE, mid - 1, POST_SIZE, POST_SIZE); g.fill({ color: FENCE_POST }); }
-  }
+  // --- Agents ---
 
   private renderAgents(farmData: FarmData): void {
     const { farm, agents } = farmData;
@@ -361,11 +421,9 @@ export class FarmRenderer {
         sprite = container;
       }
 
-      // Target position in canvas coords
       const tx = (agent.x - farm.x) * TILE_SIZE + TILE_SIZE / 2;
       const ty = (agent.y - farm.y) * TILE_SIZE + TILE_SIZE / 2;
 
-      // Smooth lerp toward target
       let dp = this.agentDisplayPos.get(agent.id);
       if (!dp) {
         dp = { x: tx, y: ty };
@@ -374,7 +432,6 @@ export class FarmRenderer {
       dp.x += (tx - dp.x) * LERP;
       dp.y += (ty - dp.y) * LERP;
 
-      // Snap if very close
       if (Math.abs(tx - dp.x) < 0.5) dp.x = tx;
       if (Math.abs(ty - dp.y) < 0.5) dp.y = ty;
 
@@ -382,7 +439,6 @@ export class FarmRenderer {
       sprite.y = dp.y;
     }
 
-    // Remove agents no longer on this farm
     for (const [id, sprite] of existing.entries()) {
       if (!agents.find(a => a.id === id)) {
         this.agentLayer.removeChild(sprite);
@@ -395,16 +451,27 @@ export class FarmRenderer {
   private createAgentActor(agent: Agent): PIXI.Container {
     const source = this.getAgentGifSource(agent);
     if (source) {
-      const sprite = new GifSprite({
-        source,
-        autoPlay: true,
-        loop: true,
-        animationSpeed: 1
-      });
-      sprite.anchor.set(0.5, 0.9);
-      sprite.scale.set(AGENT_SCALE);
-      sprite.roundPixels = true;
-      return sprite;
+      try {
+        const sprite = new GifSprite({
+          source,
+          autoPlay: true,
+          loop: true,
+          animationSpeed: 1
+        });
+        sprite.anchor.set(0.5, 0.9);
+        const bounds = sprite.getLocalBounds();
+        const baseHeight = bounds.height || 0;
+        if (baseHeight > 0) {
+          const scale = AGENT_TARGET_HEIGHT / baseHeight;
+          sprite.scale.set(scale);
+        } else {
+          sprite.scale.set(AGENT_FALLBACK_SCALE);
+        }
+        sprite.roundPixels = true;
+        return sprite;
+      } catch {
+        // GIF source has invalid frames — fall through to emoji fallback
+      }
     }
 
     const fallback = new PIXI.Text({
@@ -424,20 +491,7 @@ export class FarmRenderer {
     return this.agentGifSources[hash % this.agentGifSources.length];
   }
 
-  private getTile(state: SimState, x: number, y: number): Tile | null {
-    if (x < 0 || y < 0 || x >= state.width || y >= state.height) return null;
-    return state.tiles[y * state.width + x] ?? null;
-  }
-
-  private isWaterEdge(state: SimState, x: number, y: number): boolean {
-    const neighbors = [
-      this.getTile(state, x + 1, y),
-      this.getTile(state, x - 1, y),
-      this.getTile(state, x, y + 1),
-      this.getTile(state, x, y - 1)
-    ];
-    return neighbors.some(tile => !tile || tile.type !== 'water');
-  }
+  // --- Utilities ---
 
   private tileNoise(x: number, y: number): number {
     let n = x * 374761393 + y * 668265263;

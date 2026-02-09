@@ -5,6 +5,7 @@ import { View } from './views/types';
 import { LandingView } from './views/landing';
 import { FarmGridView } from './views/farm-grid';
 import { FarmDetailView } from './views/farm-detail';
+import { LeaderboardView } from './views/leaderboard';
 
 // Sim tick every 1.5 sec — deliberate, calm farming pace
 const SIM_INTERVAL = 1500;
@@ -72,6 +73,9 @@ async function switchView(route: Route): Promise<void> {
       break;
     case 'farm':
       currentView = new FarmDetailView(engine, route.row, route.col);
+      break;
+    case 'leaderboard':
+      currentView = new LeaderboardView(engine);
       break;
   }
 

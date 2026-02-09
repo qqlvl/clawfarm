@@ -1,8 +1,7 @@
-export type TileType = 'grass' | 'water' | 'tree' | 'farmland';
+export type TileType = 'grass' | 'water' | 'tree' | 'farmland' | 'house';
 
 export type CropId =
-  | 'radish' | 'potato' | 'carrot' | 'wheat' | 'tomato'
-  | 'corn' | 'pumpkin' | 'strawberry' | 'cabbage' | 'rice';
+  | 'wheat' | 'carrot' | 'pumpkin' | 'crystal_flower' | 'golden_tree';
 
 export type GrowthStage = 'seed' | 'sprout' | 'growing' | 'mature' | 'harvestable';
 
@@ -20,6 +19,7 @@ export type AgentAction =
 export interface CropDef {
   id: CropId;
   name: string;
+  tier: number;
   growTicks: number;
   sellPrice: number;
   seedCost: number;
@@ -36,6 +36,7 @@ export interface CropState {
   planted: number;
   watered: boolean;
   health: number;
+  ticksSinceWatered: number;
 }
 
 export interface ActiveEvent {
@@ -76,6 +77,16 @@ export interface Farm {
   y: number;
   width: number;
   height: number;
+  houseX: number;
+  houseY: number;
+}
+
+export interface AgentStats {
+  totalHarvests: number;
+  totalEarned: number;
+  cropsLost: number;
+  consecutiveHarvests: number;
+  bestStreak: number;
 }
 
 export interface Agent {
@@ -89,6 +100,7 @@ export interface Agent {
   inventory: AgentInventory;
   currentAction: AgentAction;
   goal: AgentGoal | null;
+  stats: AgentStats;
 }
 
 export interface SimConfig {

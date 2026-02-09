@@ -13,7 +13,7 @@ const DEFAULT_CONFIG: SimConfig = {
   seasonLength: 360,
   eventChance: 0.003,
   startingCoins: 50,
-  startingSeeds: { radish: 5, potato: 3, wheat: 3 }
+  startingSeeds: { wheat: 5 }
 };
 
 const AGENT_EMOJIS = ['🧑', '👩‍🌾', '🧑', '🧑', '🧑'];
@@ -74,8 +74,8 @@ export class SimEngine {
       id: `agent-${this.agentCounter++}`,
       name: name || `Agent ${this.agentCounter - 1}`,
       farmId: farm.id,
-      x: farm.x + Math.floor(farm.width / 2),
-      y: farm.y + Math.floor(farm.height / 2),
+      x: farm.x + farm.houseX,
+      y: farm.y + farm.houseY,
       energy: 100,
       emoji: AGENT_EMOJIS[(this.agentCounter - 2) % AGENT_EMOJIS.length],
       inventory: {
@@ -84,7 +84,14 @@ export class SimEngine {
         crops: {}
       },
       currentAction: 'idle',
-      goal: null
+      goal: null,
+      stats: {
+        totalHarvests: 0,
+        totalEarned: 0,
+        cropsLost: 0,
+        consecutiveHarvests: 0,
+        bestStreak: 0
+      }
     };
 
     this.state.agents.push(agent);
@@ -150,8 +157,9 @@ export class SimEngine {
 
       // Energy
       agent.energy = Math.max(0, Math.min(100, agent.energy - result.energyCost));
-      if (agent.currentAction === 'idle') {
-        agent.energy = Math.min(100, agent.energy + 0.2);
+      // Failsafe: tiny idle regen so agents never get permanently stuck at 0
+      if (agent.energy < 5 && agent.currentAction === 'idle') {
+        agent.energy = Math.min(100, agent.energy + 1);
       }
 
       // Move toward goal target
@@ -236,7 +244,6 @@ export class SimEngine {
   }
 
   private tickCrops(changedTiles: number[]): void {
-    const width = this.state.width;
     for (let i = 0; i < this.state.tiles.length; i++) {
       const tile = this.state.tiles[i];
       if (tile.type !== 'farmland' || !tile.crop) continue;
@@ -249,6 +256,16 @@ export class SimEngine {
       // Moisture decay
       if (!crop.watered) {
         tile.moisture = Math.max(0, tile.moisture - def.waterNeed * 0.01);
+        crop.ticksSinceWatered++;
+      }
+
+      // Plant death — wilting when not watered for too long
+      const dryThreshold = def.growTicks * 0.3;
+      const deathThreshold = def.growTicks * 0.5;
+      if (crop.ticksSinceWatered > deathThreshold) {
+        crop.health = Math.max(0, crop.health - 2);
+      } else if (crop.ticksSinceWatered > dryThreshold) {
+        crop.health = Math.max(0, crop.health - 0.5);
       }
 
       // Growth rate
@@ -258,7 +275,7 @@ export class SimEngine {
       if (def.forbiddenSeasons.includes(this.state.season)) {
         growRate = 0;
         crop.health = Math.max(0, crop.health - 0.15);
-      } else if (!def.preferredSeasons.includes(this.state.season)) {
+      } else if (def.preferredSeasons.length > 0 && !def.preferredSeasons.includes(this.state.season)) {
         growRate *= 0.5;
       }
 
@@ -299,8 +316,21 @@ export class SimEngine {
 
       // Dead crop
       if (crop.health <= 0) {
+        const cropName = CROP_DEFS[crop.cropId].name;
         delete tile.crop;
         changedTiles.push(i);
+        // Track crop death for the agent on this farm
+        const farmAgent = this.state.agents.find(a => a.farmId === tile.farmId);
+        if (farmAgent) {
+          farmAgent.stats.cropsLost++;
+          farmAgent.stats.consecutiveHarvests = 0;
+        }
+        this.pushLog({
+          tick: this.state.tick,
+          message: `${cropName} withered and died!`,
+          level: 'event',
+          farmId: tile.farmId
+        });
       }
     }
   }
@@ -320,6 +350,7 @@ export class SimEngine {
       if (tile.type === 'water') continue;
       agent.x = pos.x;
       agent.y = pos.y;
+      agent.energy = Math.max(0, agent.energy - 0.5);
       return;
     }
   }
@@ -338,6 +369,7 @@ export class SimEngine {
     if (tile.type === 'water') return;
     agent.x = nx;
     agent.y = ny;
+    agent.energy = Math.max(0, agent.energy - 0.5);
   }
 
   private buildInitialState(): SimState {
@@ -354,6 +386,18 @@ export class SimEngine {
           farmId,
           moisture: 0
         };
+      }
+    }
+
+    // Place houses (2x2 zone per farm)
+    for (const farm of farms) {
+      const hx = farm.x + farm.houseX;
+      const hy = farm.y + farm.houseY;
+      for (let dy = 0; dy < 2; dy++) {
+        for (let dx = 0; dx < 2; dx++) {
+          const idx = (hy + dy) * width + (hx + dx);
+          tiles[idx].type = 'house';
+        }
       }
     }
 
@@ -377,13 +421,17 @@ export class SimEngine {
     const farms: Farm[] = [];
     for (let row = 0; row < this.config.farmsPerCol; row++) {
       for (let col = 0; col < this.config.farmsPerRow; col++) {
+        // House in top-left area (offset 1,1 from corner, inside fence)
+        const houseX = 1;
+        const houseY = 1;
         farms.push({
           id: `farm-${row}-${col}`,
           row, col,
           x: col * this.config.farmSize,
           y: row * this.config.farmSize,
           width: this.config.farmSize,
-          height: this.config.farmSize
+          height: this.config.farmSize,
+          houseX, houseY
         });
       }
     }
@@ -407,6 +455,7 @@ export class SimEngine {
           const wobble = (this.noise2D(x, y, seed) - 0.5) * 0.7;
           if (dx * dx + dy * dy <= 1 + wobble) {
             const tile = tiles[this.index(x, y, width)];
+            if (tile.type === 'house') continue; // Don't overwrite houses
             tile.type = 'water';
             tile.moisture = 1;
           }
