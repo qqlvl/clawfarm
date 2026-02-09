@@ -112,10 +112,28 @@ export class AgentAI {
       }
     }
 
-    // Sell crops if inventory is getting full
+    // Sell crops — try market first (3-4 crops), then shop (3+ crops)
     const totalCrops = Object.values(agent.inventory.crops).reduce((s, n) => s + (n || 0), 0);
-    if (totalCrops >= 5) {
-      candidates.push({ action: 'selling', score: 55, tx: agent.x, ty: agent.y, ticks: 2 });
+
+    // Try market for 3-4 crops (undercut shop prices)
+    if (totalCrops >= 3 && totalCrops < 5) {
+      const excessCrop = this.findExcessCrops(agent);
+      if (excessCrop) {
+        const marketSell = this.createMarketSellOrder(excessCrop, 'crop');
+        candidates.push({
+          action: 'market_sell',
+          score: 42,
+          tx: agent.x,
+          ty: agent.y,
+          ticks: 1,
+          marketOrder: marketSell
+        });
+      }
+    }
+
+    // Fallback to shop if have 3+ crops (lowered from 5)
+    if (totalCrops >= 3) {
+      candidates.push({ action: 'selling', score: 40, tx: agent.x, ty: agent.y, ticks: 2 });
     }
 
     // Buy seeds if low — check market first, then fallback to shop
@@ -134,23 +152,7 @@ export class AgentAI {
         });
       } else {
         // Fallback to shop
-        candidates.push({ action: 'selling', score: 40, tx: agent.x, ty: agent.y, ticks: 1 });
-      }
-    }
-
-    // Sell crops on market (3-4 crops, before shop threshold of 5)
-    if (totalCrops >= 3 && totalCrops < 5) {
-      const excessCrop = this.findExcessCrops(agent);
-      if (excessCrop) {
-        const marketSell = this.createMarketSellOrder(excessCrop, 'crop');
-        candidates.push({
-          action: 'market_sell',
-          score: 42,
-          tx: agent.x,
-          ty: agent.y,
-          ticks: 1,
-          marketOrder: marketSell
-        });
+        candidates.push({ action: 'selling', score: 38, tx: agent.x, ty: agent.y, ticks: 1 });
       }
     }
 

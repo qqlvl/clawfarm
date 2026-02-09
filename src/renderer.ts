@@ -303,6 +303,80 @@ export class FarmRenderer {
         } else {
           base.tint = 0xFFFFFF;
         }
+
+        // Add borders where farmland meets grass
+        const borderColor = 0x6b5030; // Dark brown border
+        const borderAlpha = 0.5;
+        const borderWidth = 3;
+        const farmNeighbors = this.getFarmlandNeighbors(state, wx, wy);
+
+        // Straight edges
+        if (farmNeighbors.top) {
+          gfx.rect(0, 0, TILE_SIZE, borderWidth);
+          gfx.fill({ color: borderColor, alpha: borderAlpha });
+        }
+        if (farmNeighbors.bottom) {
+          gfx.rect(0, TILE_SIZE - borderWidth, TILE_SIZE, borderWidth);
+          gfx.fill({ color: borderColor, alpha: borderAlpha });
+        }
+        if (farmNeighbors.left) {
+          gfx.rect(0, 0, borderWidth, TILE_SIZE);
+          gfx.fill({ color: borderColor, alpha: borderAlpha });
+        }
+        if (farmNeighbors.right) {
+          gfx.rect(TILE_SIZE - borderWidth, 0, borderWidth, TILE_SIZE);
+          gfx.fill({ color: borderColor, alpha: borderAlpha });
+        }
+
+        // Rounded corners - only draw if diagonal neighbor is also grass
+        const farmCornerSize = borderWidth;
+        if (farmNeighbors.top && farmNeighbors.left && farmNeighbors.topLeft) {
+          gfx.moveTo(0, 0);
+          gfx.lineTo(farmCornerSize, 0);
+          gfx.lineTo(0, farmCornerSize);
+          gfx.lineTo(0, 0);
+          gfx.fill({ color: borderColor, alpha: borderAlpha });
+        }
+        if (farmNeighbors.top && farmNeighbors.right && farmNeighbors.topRight) {
+          gfx.moveTo(TILE_SIZE, 0);
+          gfx.lineTo(TILE_SIZE - farmCornerSize, 0);
+          gfx.lineTo(TILE_SIZE, farmCornerSize);
+          gfx.lineTo(TILE_SIZE, 0);
+          gfx.fill({ color: borderColor, alpha: borderAlpha });
+        }
+        if (farmNeighbors.bottom && farmNeighbors.left && farmNeighbors.bottomLeft) {
+          gfx.moveTo(0, TILE_SIZE);
+          gfx.lineTo(farmCornerSize, TILE_SIZE);
+          gfx.lineTo(0, TILE_SIZE - farmCornerSize);
+          gfx.lineTo(0, TILE_SIZE);
+          gfx.fill({ color: borderColor, alpha: borderAlpha });
+        }
+        if (farmNeighbors.bottom && farmNeighbors.right && farmNeighbors.bottomRight) {
+          gfx.moveTo(TILE_SIZE, TILE_SIZE);
+          gfx.lineTo(TILE_SIZE - farmCornerSize, TILE_SIZE);
+          gfx.lineTo(TILE_SIZE, TILE_SIZE - farmCornerSize);
+          gfx.lineTo(TILE_SIZE, TILE_SIZE);
+          gfx.fill({ color: borderColor, alpha: borderAlpha });
+        }
+
+        // Add furrows (борозды) for visual variety
+        if (!tile.crop && n1 > 0.25) { // Only on empty farmland, ~75% of tiles
+          const furrowColor = 0x7a5a2a; // Darker brown
+          const furrowAlpha = 0.3;
+          const furrowHeight = 1;
+
+          // 3 horizontal furrows at different positions
+          const y1 = 6 + Math.floor(n1 * 3);
+          const y2 = 14 + Math.floor(n2 * 3);
+          const y3 = 22 + Math.floor(n1 * 4);
+
+          gfx.rect(0, y1, TILE_SIZE, furrowHeight);
+          gfx.fill({ color: furrowColor, alpha: furrowAlpha });
+          gfx.rect(0, y2, TILE_SIZE, furrowHeight);
+          gfx.fill({ color: furrowColor, alpha: furrowAlpha });
+          gfx.rect(0, y3, TILE_SIZE, furrowHeight);
+          gfx.fill({ color: furrowColor, alpha: furrowAlpha });
+        }
       }
 
       // Crop sprite — centered within tile, size varies by growth stage
@@ -337,6 +411,99 @@ export class FarmRenderer {
         base.texture = waterTex;
         base.visible = true;
         base.tint = SEASON_SPRITE_TINT[state.season];
+
+        // Add sand shores where water meets land
+        const sandColor = 0xe8d4a0; // Light sandy beige
+        const sandAlpha = 0.7;
+        const shoreWidth = 4; // Width of the sand strip
+
+        // Check neighbors and draw shore on appropriate sides
+        const neighbors = this.getWaterNeighbors(state, wx, wy);
+
+        // Straight edges
+        if (neighbors.top) {
+          gfx.rect(0, 0, TILE_SIZE, shoreWidth);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+        if (neighbors.bottom) {
+          gfx.rect(0, TILE_SIZE - shoreWidth, TILE_SIZE, shoreWidth);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+        if (neighbors.left) {
+          gfx.rect(0, 0, shoreWidth, TILE_SIZE);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+        if (neighbors.right) {
+          gfx.rect(TILE_SIZE - shoreWidth, 0, shoreWidth, TILE_SIZE);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+
+        // Rounded corners
+        const cornerSize = shoreWidth;
+
+        // Inner corners (both sides have land + diagonal has land)
+        if (neighbors.top && neighbors.left && neighbors.topLeft) {
+          gfx.moveTo(0, 0);
+          gfx.lineTo(cornerSize, 0);
+          gfx.lineTo(0, cornerSize);
+          gfx.lineTo(0, 0);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+        if (neighbors.top && neighbors.right && neighbors.topRight) {
+          gfx.moveTo(TILE_SIZE, 0);
+          gfx.lineTo(TILE_SIZE - cornerSize, 0);
+          gfx.lineTo(TILE_SIZE, cornerSize);
+          gfx.lineTo(TILE_SIZE, 0);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+        if (neighbors.bottom && neighbors.left && neighbors.bottomLeft) {
+          gfx.moveTo(0, TILE_SIZE);
+          gfx.lineTo(cornerSize, TILE_SIZE);
+          gfx.lineTo(0, TILE_SIZE - cornerSize);
+          gfx.lineTo(0, TILE_SIZE);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+        if (neighbors.bottom && neighbors.right && neighbors.bottomRight) {
+          gfx.moveTo(TILE_SIZE, TILE_SIZE);
+          gfx.lineTo(TILE_SIZE - cornerSize, TILE_SIZE);
+          gfx.lineTo(TILE_SIZE, TILE_SIZE - cornerSize);
+          gfx.lineTo(TILE_SIZE, TILE_SIZE);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+
+        // Outer corners (no sides but diagonal has land)
+        // Top-left outer corner
+        if (!neighbors.top && !neighbors.left && neighbors.topLeft) {
+          gfx.moveTo(0, 0);
+          gfx.lineTo(cornerSize, 0);
+          gfx.lineTo(0, cornerSize);
+          gfx.lineTo(0, 0);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+        // Top-right outer corner
+        if (!neighbors.top && !neighbors.right && neighbors.topRight) {
+          gfx.moveTo(TILE_SIZE, 0);
+          gfx.lineTo(TILE_SIZE - cornerSize, 0);
+          gfx.lineTo(TILE_SIZE, cornerSize);
+          gfx.lineTo(TILE_SIZE, 0);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+        // Bottom-left outer corner
+        if (!neighbors.bottom && !neighbors.left && neighbors.bottomLeft) {
+          gfx.moveTo(0, TILE_SIZE);
+          gfx.lineTo(cornerSize, TILE_SIZE);
+          gfx.lineTo(0, TILE_SIZE - cornerSize);
+          gfx.lineTo(0, TILE_SIZE);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
+        // Bottom-right outer corner
+        if (!neighbors.bottom && !neighbors.right && neighbors.bottomRight) {
+          gfx.moveTo(TILE_SIZE, TILE_SIZE);
+          gfx.lineTo(TILE_SIZE - cornerSize, TILE_SIZE);
+          gfx.lineTo(TILE_SIZE, TILE_SIZE - cornerSize);
+          gfx.lineTo(TILE_SIZE, TILE_SIZE);
+          gfx.fill({ color: sandColor, alpha: sandAlpha });
+        }
       } else {
         // Fallback to procedural
         base.visible = false;
@@ -443,6 +610,12 @@ export class FarmRenderer {
 
       sprite.x = dp.x;
       sprite.y = dp.y;
+
+      // Hide agent when inside house (2x2 area at 1,1)
+      const lx = agent.x - farm.x;
+      const ly = agent.y - farm.y;
+      const isInHouse = (lx === 1 || lx === 2) && (ly === 1 || ly === 2);
+      sprite.visible = !isInHouse;
     }
 
     for (const [id, sprite] of existing.entries()) {
@@ -501,6 +674,70 @@ export class FarmRenderer {
   }
 
   // --- Utilities ---
+
+  /**
+   * Check if water tile has land neighbors (grass or farmland) on each side
+   * Returns which sides should have sand shores
+   */
+  private getWaterNeighbors(state: SimState, wx: number, wy: number): {
+    top: boolean;
+    bottom: boolean;
+    left: boolean;
+    right: boolean;
+    topLeft: boolean;
+    topRight: boolean;
+    bottomLeft: boolean;
+    bottomRight: boolean;
+  } {
+    const isLand = (x: number, y: number): boolean => {
+      if (x < 0 || x >= state.width || y < 0 || y >= state.height) return false;
+      const tile = state.tiles[y * state.width + x];
+      return tile.type === 'grass' || tile.type === 'farmland';
+    };
+
+    return {
+      top: isLand(wx, wy - 1),
+      bottom: isLand(wx, wy + 1),
+      left: isLand(wx - 1, wy),
+      right: isLand(wx + 1, wy),
+      topLeft: isLand(wx - 1, wy - 1),
+      topRight: isLand(wx + 1, wy - 1),
+      bottomLeft: isLand(wx - 1, wy + 1),
+      bottomRight: isLand(wx + 1, wy + 1)
+    };
+  }
+
+  /**
+   * Check if farmland tile has grass neighbors on each side
+   * Returns which sides should have dark borders
+   */
+  private getFarmlandNeighbors(state: SimState, wx: number, wy: number): {
+    top: boolean;
+    bottom: boolean;
+    left: boolean;
+    right: boolean;
+    topLeft: boolean;
+    topRight: boolean;
+    bottomLeft: boolean;
+    bottomRight: boolean;
+  } {
+    const isGrass = (x: number, y: number): boolean => {
+      if (x < 0 || x >= state.width || y < 0 || y >= state.height) return false;
+      const tile = state.tiles[y * state.width + x];
+      return tile.type === 'grass';
+    };
+
+    return {
+      top: isGrass(wx, wy - 1),
+      bottom: isGrass(wx, wy + 1),
+      left: isGrass(wx - 1, wy),
+      right: isGrass(wx + 1, wy),
+      topLeft: isGrass(wx - 1, wy - 1),
+      topRight: isGrass(wx + 1, wy - 1),
+      bottomLeft: isGrass(wx - 1, wy + 1),
+      bottomRight: isGrass(wx + 1, wy + 1)
+    };
+  }
 
   private tileNoise(x: number, y: number): number {
     let n = x * 374761393 + y * 668265263;

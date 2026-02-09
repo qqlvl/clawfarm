@@ -459,8 +459,21 @@ export class SimEngine {
       const maxRadius = Math.max(2, Math.floor(farm.width / 3));
       const rx = this.rng.nextInt(2, maxRadius);
       const ry = this.rng.nextInt(2, maxRadius);
-      const cx = this.rng.nextInt(farm.x + margin, farm.x + farm.width - margin - 1);
-      const cy = this.rng.nextInt(farm.y + margin, farm.y + farm.height - margin - 1);
+
+      // Ensure lake center is not too close to house (house is at 1,1 and is 2x2)
+      const houseX = farm.x + farm.houseX + 1; // Center of house
+      const houseY = farm.y + farm.houseY + 1;
+      const minDistFromHouse = 4; // Minimum distance from house center
+
+      let cx, cy, attempts = 0;
+      do {
+        cx = this.rng.nextInt(farm.x + margin, farm.x + farm.width - margin - 1);
+        cy = this.rng.nextInt(farm.y + margin, farm.y + farm.height - margin - 1);
+        const dist = Math.sqrt((cx - houseX) ** 2 + (cy - houseY) ** 2);
+        if (dist >= minDistFromHouse) break;
+        attempts++;
+      } while (attempts < 10); // Max 10 attempts, then give up
+
       const seed = farm.row * 4099 + farm.col * 131;
 
       for (let y = farm.y; y < farm.y + farm.height; y++) {
