@@ -32,6 +32,11 @@ import wilted_large from './assets/crops/wilted_large.png';
 import farmland from './assets/terrain/farmland.png';
 import water from './assets/terrain/water.png';
 
+// Grass tiles
+import grass_0 from './assets/land/tiles/grass_0.png';
+import grass_1 from './assets/land/tiles/grass_1.png';
+import grass_2 from './assets/land/tiles/grass_2.png';
+
 // House (single tile, rendered 2x2)
 import house from './assets/house/house.png';
 
@@ -66,6 +71,10 @@ export const SPRITE_URLS: Record<string, string> = {
 
   'farmland': farmland,
   'water': water,
+
+  'grass_0': grass_0,
+  'grass_1': grass_1,
+  'grass_2': grass_2,
 
   'house': house,
 };

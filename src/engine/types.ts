@@ -14,7 +14,12 @@ export type EventType =
 
 export type AgentAction =
   | 'idle' | 'walking' | 'tilling' | 'planting'
-  | 'watering' | 'harvesting' | 'selling' | 'resting';
+  | 'watering' | 'harvesting' | 'selling' | 'resting'
+  | 'market_buy' | 'market_sell';
+
+export type OrderType = 'sell' | 'buy';
+
+export type ItemType = 'seed' | 'crop';
 
 export interface CropDef {
   id: CropId;
@@ -60,6 +65,13 @@ export interface AgentGoal {
   targetY: number;
   ticksRemaining: number;
   cropId?: CropId;
+  marketOrder?: {
+    type: OrderType;
+    itemType: ItemType;
+    cropId: CropId;
+    quantity: number;
+    pricePerUnit: number;
+  };
 }
 
 export interface Tile {
@@ -123,6 +135,42 @@ export interface LogEntry {
   agentId?: string;
 }
 
+export interface MarketOrder {
+  id: string;
+  agentId: string;
+  farmId: string;
+  type: OrderType;
+  itemType: ItemType;
+  cropId: CropId;
+  quantity: number;
+  pricePerUnit: number;
+  createdTick: number;
+  expiresAtTick: number;
+}
+
+export interface MarketTrade {
+  id: string;
+  buyOrderId: string;
+  sellOrderId: string;
+  buyerAgentId: string;
+  sellerAgentId: string;
+  cropId: CropId;
+  itemType: ItemType;
+  quantity: number;
+  pricePerUnit: number;
+  totalPrice: number;
+  commission: number;
+  tick: number;
+}
+
+export interface GlobalMarket {
+  orders: MarketOrder[];
+  tradeHistory: MarketTrade[];
+  worldPoolCoins: number;
+  nextOrderId: number;
+  nextTradeId: number;
+}
+
 export interface SimState {
   tick: number;
   width: number;
@@ -134,6 +182,7 @@ export interface SimState {
   season: Season;
   seasonTick: number;
   events: ActiveEvent[];
+  market: GlobalMarket;
 }
 
 export interface StepResult {

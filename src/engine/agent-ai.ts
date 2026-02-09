@@ -1,6 +1,7 @@
-import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile } from './types';
+import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile, SimState, GlobalMarket, ItemType, OrderType } from './types';
 import { CROP_DEFS, ALL_CROP_IDS } from './crops';
 import { Rng } from './random';
+import { marketEngine } from './market';
 
 interface TileChange {
   worldIndex: number;
@@ -24,13 +25,14 @@ export class AgentAI {
     season: Season,
     events: ActiveEvent[],
     rng: Rng,
-    worldWidth: number
+    worldWidth: number,
+    state: SimState
   ): AIResult {
     // If currently executing a goal, continue
     if (agent.goal && agent.goal.ticksRemaining > 0) {
       agent.goal.ticksRemaining--;
       if (agent.goal.ticksRemaining === 0) {
-        return this.executeGoal(agent, farm, tiles, farmSize, season, events, rng, worldWidth);
+        return this.executeGoal(agent, farm, tiles, farmSize, season, events, rng, worldWidth, state);
       }
       // Give energy per tick while resting (not just on completion)
       if (agent.goal.action === 'resting') {
@@ -59,6 +61,13 @@ export class AgentAI {
       ty: number;
       ticks: number;
       cropId?: CropId;
+      marketOrder?: {
+        type: OrderType;
+        itemType: ItemType;
+        cropId: CropId;
+        quantity: number;
+        pricePerUnit: number;
+      };
     }
 
     const candidates: Candidate[] = [];
@@ -109,9 +118,54 @@ export class AgentAI {
       candidates.push({ action: 'selling', score: 55, tx: agent.x, ty: agent.y, ticks: 2 });
     }
 
-    // Buy seeds if low — smart buying based on affordability
+    // Buy seeds if low — check market first, then fallback to shop
     if (this.totalSeeds(agent) < 3 && agent.inventory.coins >= 5) {
-      candidates.push({ action: 'selling', score: 40, tx: agent.x, ty: agent.y, ticks: 1 });
+      const bestMarketBuy = this.findBestMarketBuy(agent, season, state.market);
+
+      if (bestMarketBuy) {
+        // Market is cheaper - create buy order
+        candidates.push({
+          action: 'market_buy',
+          score: 45,
+          tx: agent.x,
+          ty: agent.y,
+          ticks: 1,
+          marketOrder: bestMarketBuy
+        });
+      } else {
+        // Fallback to shop
+        candidates.push({ action: 'selling', score: 40, tx: agent.x, ty: agent.y, ticks: 1 });
+      }
+    }
+
+    // Sell crops on market (3-4 crops, before shop threshold of 5)
+    if (totalCrops >= 3 && totalCrops < 5) {
+      const excessCrop = this.findExcessCrops(agent);
+      if (excessCrop) {
+        const marketSell = this.createMarketSellOrder(excessCrop, 'crop');
+        candidates.push({
+          action: 'market_sell',
+          score: 42,
+          tx: agent.x,
+          ty: agent.y,
+          ticks: 1,
+          marketOrder: marketSell
+        });
+      }
+    }
+
+    // Sell excess seeds on market (if have >8 of one type)
+    const excessSeeds = this.findExcessSeeds(agent);
+    if (excessSeeds && agent.inventory.coins < 200) {
+      const marketSell = this.createMarketSellOrder(excessSeeds, 'seed');
+      candidates.push({
+        action: 'market_sell',
+        score: 35,
+        tx: agent.x,
+        ty: agent.y,
+        ticks: 1,
+        marketOrder: marketSell
+      });
     }
 
     // Add randomness
@@ -149,7 +203,8 @@ export class AgentAI {
     season: Season,
     events: ActiveEvent[],
     rng: Rng,
-    worldWidth: number
+    worldWidth: number,
+    state: SimState
   ): AIResult {
     const goal = agent.goal!;
     const lx = goal.targetX - farm.x;
@@ -257,6 +312,28 @@ export class AgentAI {
         break;
       }
 
+      case 'market_buy':
+      case 'market_sell': {
+        if (goal.marketOrder) {
+          const order = marketEngine.createOrder(
+            state,
+            agent,
+            goal.marketOrder.type,
+            goal.marketOrder.itemType,
+            goal.marketOrder.cropId,
+            goal.marketOrder.quantity,
+            goal.marketOrder.pricePerUnit
+          );
+          if (order) {
+            const itemName = CROP_DEFS[order.cropId].name;
+            const itemTypeStr = order.itemType === 'seed' ? 'seeds' : 'crops';
+            logs.push(`${agent.name} placed ${order.type} order for ${order.quantity} ${itemName} ${itemTypeStr}`);
+          }
+        }
+        energyCost = 1;
+        break;
+      }
+
       case 'resting': {
         // Energy per tick (same as intermediate ticks)
         const atHouse = this.getTileTypeAt(tiles, agent.x - farm.x, agent.y - farm.y, farmSize) === 'house';
@@ -307,5 +384,109 @@ export class AgentAI {
 
   private totalSeeds(agent: Agent): number {
     return Object.values(agent.inventory.seeds).reduce((s, n) => s + (n || 0), 0);
+  }
+
+  /**
+   * Check if market has better seed prices than shop
+   * Returns order details if market is 10%+ cheaper, null otherwise
+   */
+  private findBestMarketBuy(
+    agent: Agent,
+    season: Season,
+    market: GlobalMarket
+  ): { type: OrderType; itemType: ItemType; cropId: CropId; quantity: number; pricePerUnit: number } | null {
+    const cropId = this.pickBestAffordableCrop(agent, season);
+    if (!cropId) return null;
+
+    const shopPrice = CROP_DEFS[cropId].seedCost;
+
+    // Check recent market prices
+    const recentPrice = marketEngine.getRecentMarketPrice(market, cropId, 'seed');
+
+    // Only use market if it's at least 10% cheaper than shop
+    if (recentPrice && recentPrice < shopPrice * 0.9) {
+      const maxPrice = Math.round(shopPrice * 0.85); // Will pay up to 85% of shop
+      const quantity = Math.min(3, Math.floor(agent.inventory.coins / maxPrice));
+
+      if (quantity > 0) {
+        return {
+          type: 'buy',
+          itemType: 'seed',
+          cropId,
+          quantity,
+          pricePerUnit: maxPrice
+        };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Create market sell order with pricing strategy
+   * Undercuts shop by 15-25% (randomized) to attract buyers
+   */
+  private createMarketSellOrder(
+    item: { cropId: CropId; quantity: number },
+    itemType: ItemType
+  ): { type: OrderType; itemType: ItemType; cropId: CropId; quantity: number; pricePerUnit: number } {
+    const def = CROP_DEFS[item.cropId];
+    const shopPrice = itemType === 'seed' ? def.seedCost : def.sellPrice;
+
+    // Undercut shop by 15-25% to attract buyers
+    const discount = 0.15 + Math.random() * 0.10;
+    const marketPrice = Math.max(
+      Math.round(shopPrice * (1 - discount)),
+      Math.round(shopPrice * 0.30) // Price floor: never go below 30% of shop price
+    );
+
+    return {
+      type: 'sell',
+      itemType,
+      cropId: item.cropId,
+      quantity: item.quantity,
+      pricePerUnit: marketPrice
+    };
+  }
+
+  /**
+   * Find excess seeds to sell on market
+   * Returns seed type and quantity if agent has >8 of any seed
+   */
+  private findExcessSeeds(agent: Agent): { cropId: CropId; quantity: number } | null {
+    for (const [cropId, count] of Object.entries(agent.inventory.seeds)) {
+      if (count && count > 8) {
+        return {
+          cropId: cropId as CropId,
+          quantity: Math.floor(count / 2) // Sell half
+        };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Find excess crops to sell on market
+   * Returns highest tier crop if have 2+
+   */
+  private findExcessCrops(agent: Agent): { cropId: CropId; quantity: number } | null {
+    const crops = Object.entries(agent.inventory.crops)
+      .filter(([_, count]) => count && count >= 2)
+      .map(([id, count]) => ({
+        cropId: id as CropId,
+        count: count!,
+        tier: CROP_DEFS[id as CropId].tier
+      }))
+      .sort((a, b) => b.tier - a.tier);
+
+    if (crops.length > 0) {
+      const best = crops[0];
+      return {
+        cropId: best.cropId,
+        quantity: Math.floor(best.count / 2) // List half, keep half for shop
+      };
+    }
+
+    return null;
   }
 }

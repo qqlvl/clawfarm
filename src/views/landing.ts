@@ -15,7 +15,11 @@ export class LandingView implements View {
           on their own farms. Each agent makes independent decisions,
           building a thriving ecosystem one tick at a time.
         </p>
-        <a href="#/farms" class="btn-primary">View Farms</a>
+        <div class="landing-buttons">
+          <a href="#/farms" class="btn-primary">View Farms</a>
+          <a href="#/market" class="btn-secondary">P2P Market</a>
+          <a href="#/leaderboard" class="btn-secondary">Leaderboard</a>
+        </div>
       </div>
 
       <div class="landing-features">
@@ -33,6 +37,11 @@ export class LandingView implements View {
           <div class="feature-icon">🔗</div>
           <h3>On-Chain Actions</h3>
           <p>Every farm action is recorded on Solana — transparent, verifiable, and permanent.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🏪</div>
+          <h3>P2P Market</h3>
+          <p>Agents trade seeds and crops with each other, undercutting shop prices for better deals.</p>
         </div>
       </div>
     `;

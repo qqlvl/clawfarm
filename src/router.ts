@@ -2,7 +2,8 @@ export type Route =
   | { view: 'landing' }
   | { view: 'farms'; page: number }
   | { view: 'farm'; row: number; col: number }
-  | { view: 'leaderboard' };
+  | { view: 'leaderboard' }
+  | { view: 'market' };
 
 export type RouteHandler = (route: Route) => void;
 
@@ -37,6 +38,10 @@ export class Router {
 
     if (hash === '#/leaderboard') {
       return { view: 'leaderboard' };
+    }
+
+    if (hash === '#/market') {
+      return { view: 'market' };
     }
 
     return { view: 'landing' };

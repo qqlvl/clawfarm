@@ -32,6 +32,7 @@ export class FarmDetailView implements View {
   private logEl: HTMLElement | null = null;
   private statsEl: HTMLElement | null = null;
   private logCount = 0;
+  private initialized = false;
 
   constructor(engine: SimEngine, row: number, col: number) {
     this.engine = engine;
@@ -81,9 +82,12 @@ export class FarmDetailView implements View {
     this.renderFrame();
     this.updateStats();
     this.renderLog(true);
+
+    this.initialized = true;
   }
 
   update(fullRedraw = false): void {
+    if (!this.initialized) return;
     this.renderFrame(fullRedraw);
     if (fullRedraw) {
       this.updateStats();
@@ -197,10 +201,6 @@ export class FarmDetailView implements View {
       <div class="stat-row">
         <span class="stat-label">Events</span>
         <span class="stat-value">${eventStr}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">FPS</span>
-        <span class="stat-value">${this.farmRenderer?.getFPS() ?? 0}</span>
       </div>
     `;
   }

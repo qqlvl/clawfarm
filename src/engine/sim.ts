@@ -3,6 +3,7 @@ import { Agent, Farm, LogEntry, Season, SimConfig, SimState, StepResult, Tile } 
 import { CROP_DEFS } from './crops';
 import { rollForEvent, applyInstantEvent } from './events';
 import { AgentAI } from './agent-ai';
+import { marketEngine } from './market';
 
 const DEFAULT_CONFIG: SimConfig = {
   farmSize: 10,
@@ -137,7 +138,8 @@ export class SimEngine {
 
       const result = ai.decide(
         agent, farm, farmData.tiles, this.config.farmSize,
-        this.state.season, farmEvents, this.rng, this.state.width
+        this.state.season, farmEvents, this.rng, this.state.width,
+        this.state
       );
 
       if (result.goal) {
@@ -178,6 +180,12 @@ export class SimEngine {
           agentId: agent.id
         });
       }
+    }
+
+    // Market processing
+    const marketLogs = marketEngine.processMarket(this.state, this.rng);
+    for (const log of marketLogs) {
+      this.pushLog(log);
     }
 
     // Periodic status log
@@ -413,7 +421,14 @@ export class SimEngine {
       log: [],
       season: 'spring',
       seasonTick: 0,
-      events: []
+      events: [],
+      market: {
+        orders: [],
+        tradeHistory: [],
+        worldPoolCoins: 0,
+        nextOrderId: 1,
+        nextTradeId: 1
+      }
     };
   }
 

@@ -6,6 +6,8 @@ import { LandingView } from './views/landing';
 import { FarmGridView } from './views/farm-grid';
 import { FarmDetailView } from './views/farm-detail';
 import { LeaderboardView } from './views/leaderboard';
+import { MarketView } from './views/market';
+import { getAgentGifSources } from './gif-cache';
 
 // Sim tick every 1.5 sec — deliberate, calm farming pace
 const SIM_INTERVAL = 1500;
@@ -24,6 +26,11 @@ const engine = new SimEngine({
 for (let i = 0; i < 8; i++) {
   engine.addAgent();
 }
+
+// Pre-load GIF sources in background
+getAgentGifSources().then(sources => {
+  console.log(`Pre-loaded ${sources.length} agent GIF sources`);
+});
 
 let currentView: View | null = null;
 let simTimer: number | null = null;
@@ -76,6 +83,9 @@ async function switchView(route: Route): Promise<void> {
       break;
     case 'leaderboard':
       currentView = new LeaderboardView(engine);
+      break;
+    case 'market':
+      currentView = new MarketView(engine);
       break;
   }
 

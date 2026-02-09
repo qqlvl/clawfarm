@@ -118,7 +118,7 @@ export class FarmRenderer {
       console.warn('Tile atlas not loaded, using procedural tiles');
     }
 
-    // Load individual sprite textures (crops, terrain, house)
+    // Load individual sprite textures (crops, terrain, house, grass)
     try {
       const entries = Object.entries(SPRITE_URLS);
       const loaded = await Promise.all(
@@ -128,11 +128,13 @@ export class FarmRenderer {
         loaded[i].source.scaleMode = 'nearest';
         this.spriteTextures.set(entries[i][0], loaded[i]);
       }
+      console.log(`Loaded ${entries.length} sprite textures:`, Array.from(this.spriteTextures.keys()));
     } catch (e) {
       console.warn('Sprite textures not loaded', e);
     }
 
     this.agentGifSources = await getAgentGifSources();
+    console.log(`FarmRenderer init complete: ${this.agentGifSources.length} GIF sources loaded`);
   }
 
   renderFarm(farmData: FarmData, state: SimState, fullRedraw = true): void {
@@ -260,36 +262,32 @@ export class FarmRenderer {
 
     const n1 = this.tileNoise(wx, wy);
     const n2 = this.tileNoise(wx * 3 + 97, wy * 3 + 131);
-    const useSprites = !!this.atlas;
 
-    if (!useSprites) {
-      // Full procedural fallback (no atlas loaded)
-      base.visible = false;
-      this.drawTileProcedural(gfx, tile, wx, wy, n1, n2, state, lx, ly);
-      return;
-    }
-
-    // --- Sprite-based rendering ---
+    // --- Sprite-based rendering (individual textures) ---
 
     if (tile.type === 'grass') {
-      let tileIdx: number;
-      const isInner = lx > 0 && lx < farmSize - 1 && ly > 0 && ly < farmSize - 1;
+      // Use 3 simple grass sprites: grass_0 (plain), grass_1 (grass), grass_2 (flowers)
+      let grassKey: string;
 
-      if (n2 > 0.92) {
-        tileIdx = T.GRASS_FLOWER;
-      } else if (isInner && n2 > 0.86 && n1 > 0.6) {
-        tileIdx = T.BUSH_ROUND;
-      } else if (isInner && n2 > 0.83 && n1 < 0.35) {
-        tileIdx = T.TREE_PINE;
-      } else if (isInner && n2 > 0.80 && n1 > 0.4 && n1 < 0.55) {
-        tileIdx = T.MUSHROOM;
+      if (n2 > 0.49) {
+        grassKey = 'grass_2'; // Flowers (almost never)
+      } else if (n1 > 0.30) {
+        grassKey = 'grass_1'; // Grass (~40%)
       } else {
-        tileIdx = n1 > 0.5 ? T.GRASS_1 : T.GRASS_2;
+        grassKey = 'grass_0'; // Plain green (~60%)
       }
 
-      base.texture = this.atlasTex(tileIdx);
-      base.tint = SEASON_SPRITE_TINT[state.season];
-      base.visible = true;
+      const grassTex = this.spriteTextures.get(grassKey);
+
+      if (grassTex) {
+        base.texture = grassTex;
+        base.tint = SEASON_SPRITE_TINT[state.season];
+        base.visible = true;
+      } else {
+        // Fallback to procedural
+        base.visible = false;
+        this.drawTileProcedural(gfx, tile, wx, wy, n1, n2, state, lx, ly);
+      }
 
     } else if (tile.type === 'farmland') {
       // Farmland base texture
@@ -339,6 +337,10 @@ export class FarmRenderer {
         base.texture = waterTex;
         base.visible = true;
         base.tint = SEASON_SPRITE_TINT[state.season];
+      } else {
+        // Fallback to procedural
+        base.visible = false;
+        this.drawTileProcedural(gfx, tile, wx, wy, n1, n2, state, lx, ly);
       }
 
     } else if (tile.type === 'house') {
@@ -350,6 +352,10 @@ export class FarmRenderer {
         base.height = TILE_SIZE * 2;
         base.visible = true;
         base.tint = 0xFFFFFF;
+      } else if (!houseTex) {
+        // Fallback to procedural if texture missing
+        base.visible = false;
+        this.drawTileProcedural(gfx, tile, wx, wy, n1, n2, state, lx, ly);
       } else {
         // Other 3 house tiles — hidden (covered by the 2x2 sprite)
         base.visible = false;
@@ -469,9 +475,12 @@ export class FarmRenderer {
         }
         sprite.roundPixels = true;
         return sprite;
-      } catch {
+      } catch (e) {
+        console.warn('GIF sprite creation failed, using fallback:', e);
         // GIF source has invalid frames — fall through to emoji fallback
       }
+    } else {
+      console.warn(`No GIF source for agent ${agent.name}, using emoji fallback (sources: ${this.agentGifSources.length})`);
     }
 
     const fallback = new PIXI.Text({
