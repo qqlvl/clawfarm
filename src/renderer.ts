@@ -150,7 +150,9 @@ export class FarmRenderer {
   }
 
   destroy(): void {
-    this.app?.destroy(true, { children: true });
+    // Don't destroy textures/baseTextures - they're shared across renderers via gifCache
+    // Only destroy the app and containers, not the underlying GIF sources
+    this.app?.destroy(false, { children: false, texture: false, baseTexture: false });
     this.tileNodes = [];
     this.agentDisplayPos.clear();
     this.currentFarmId = null;
