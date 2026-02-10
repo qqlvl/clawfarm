@@ -85,18 +85,18 @@ export class AgentAI {
         }
 
         // Water crops based on ticksSinceWatered (not moisture!)
-        // Water before dryThreshold (30%) to prevent health loss
+        // Water at 20% threshold = 10 ticks margin before 30% death threshold
         if (tile.type === 'farmland' && tile.crop && !tile.crop.watered
             && tile.crop.stage !== 'harvestable') {
           const def = CROP_DEFS[tile.crop.cropId];
-          const wateringThreshold = def.growTicks * 0.25; // Water at 25% of growTicks
+          const wateringThreshold = def.growTicks * 0.20; // Water at 20% (was 25%)
           const needsWater = tile.crop.ticksSinceWatered > wateringThreshold;
 
           if (needsWater) {
-            let waterScore = 70 - dist * 0.5;
+            let waterScore = 85 - dist * 0.5; // Higher priority (was 70)
             // Boost priority for wilting crops
-            if (tile.crop.health < 50) waterScore += 30;
-            else if (tile.crop.health < 80) waterScore += 10;
+            if (tile.crop.health < 50) waterScore += 30; // Critical: 115
+            else if (tile.crop.health < 80) waterScore += 10; // Warning: 95
             candidates.push({ action: 'watering', score: waterScore, tx: wx, ty: wy, ticks: 1 });
           }
         }

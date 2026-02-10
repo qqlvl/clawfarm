@@ -335,6 +335,13 @@ export class SimEngine {
       // Dead crop
       if (crop.health <= 0) {
         const cropName = CROP_DEFS[crop.cropId].name;
+        const debugInfo = {
+          ticksSinceWatered: crop.ticksSinceWatered,
+          growTicks: def.growTicks,
+          stage: crop.stage,
+          progress: Math.round(crop.growthProgress * 100)
+        };
+        console.error(`[DEATH] ${cropName} died on ${tile.farmId}`, debugInfo);
         delete tile.crop;
         changedTiles.push(i);
         // Track crop death for the agent on this farm
@@ -345,7 +352,7 @@ export class SimEngine {
         }
         this.pushLog({
           tick: this.state.tick,
-          message: `${cropName} withered and died!`,
+          message: `${cropName} withered and died! (${crop.ticksSinceWatered} ticks dry)`,
           level: 'event',
           farmId: tile.farmId
         });
