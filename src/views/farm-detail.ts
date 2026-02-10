@@ -22,6 +22,19 @@ const LOG_LEVEL_CLASS: Record<string, string> = {
   info: 'log-info'
 };
 
+const EVENT_DESCRIPTIONS: Record<string, string> = {
+  rain: '💧 Waters all crops instantly',
+  drought: '☀️ Crops dry faster, reduced moisture',
+  storm: '⛈️ Damages crops (-30 health)',
+  fairy_blessing: '✨ Crops grow 50% faster',
+  merchant: '🎁 Free rare seeds (2-4)',
+  harvest_festival: '🎉 Sell prices increased',
+  lunar_new_year: '🧧 Bonus coins (+20-50)',
+  meteor_shower: '☄️ Good fortune (+5-15 coins)',
+  market_day: '🏪 Market trading active',
+  pest_infestation: '🐛 Pests damage all crops'
+};
+
 export class FarmDetailView implements View {
   private el: HTMLElement | null = null;
   private farmRenderer: FarmRenderer | null = null;
@@ -181,7 +194,10 @@ export class FarmDetailView implements View {
     }
 
     const eventStr = farmEvents.length > 0
-      ? farmEvents.map(e => `<span class="event-badge event-${e.type}">${e.name}</span>`).join(' ')
+      ? farmEvents.map(e => {
+          const desc = EVENT_DESCRIPTIONS[e.type] || 'Active event';
+          return `<span class="event-badge event-${e.type}" title="${desc}">${e.name}</span>`;
+        }).join(' ')
       : '<span class="stat-muted">None</span>';
 
     this.statsEl.innerHTML = `
