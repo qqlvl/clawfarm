@@ -623,8 +623,12 @@ export class FarmRenderer {
       sprite.x = dp.x;
       sprite.y = dp.y;
 
-      // Always show agent (even at house) — hiding caused "disappear" bug during rest
-      sprite.visible = true;
+      // Hide agent only when resting inside the house (2x2 at tiles 1,1 to 2,2)
+      const localX = agent.x - farm.x;
+      const localY = agent.y - farm.y;
+      const isInHouse = localX >= 1 && localX <= 2 && localY >= 1 && localY <= 2;
+      const isResting = agent.currentAction === 'resting';
+      sprite.visible = !(isInHouse && isResting);
     }
 
     for (const [id, sprite] of existing.entries()) {

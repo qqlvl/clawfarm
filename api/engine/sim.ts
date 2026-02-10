@@ -579,19 +579,23 @@ export class SimEngine {
     const stock: Record<string, number> = {};
     const maxStock: Record<string, number> = {};
 
-    // Stock ranges by tier - balanced for 8 agents + P2P market
+    // Stock ranges by tier - balanced for 8 agents, refresh every 200 ticks
     const stockRanges: Record<number, [number, number]> = {
-      1: [12, 18], // ~2 per agent
-      2: [10, 14], // ~1.5 per agent
-      3: [5, 8],   // Competition starts here
-      4: [3, 5],   // Scarce
-      5: [2, 3],   // Rare
-      6: [1, 2]    // Very rare
+      1: [10, 15], // ~1.5 per agent
+      2: [8, 12],  // ~1.2 per agent
+      3: [4, 7],   // Competition starts here
+      4: [2, 4],   // Scarce
+      5: [1, 3],   // Rare — 30% chance of 0
+      6: [1, 2]    // Very rare — 40% chance of 0
     };
+
+    // Chance for rare seeds to not appear at all
+    const zeroChance: Record<number, number> = { 5: 0.3, 6: 0.4 };
 
     for (const [cropId, def] of Object.entries(CROP_DEFS)) {
       const [min, max] = stockRanges[def.tier] || [10, 20];
-      const quantity = this.rng.nextInt(min, max);
+      const skipChance = zeroChance[def.tier] || 0;
+      const quantity = this.rng.next() < skipChance ? 0 : this.rng.nextInt(min, max);
       stock[cropId] = quantity;
       maxStock[cropId] = max;
     }
