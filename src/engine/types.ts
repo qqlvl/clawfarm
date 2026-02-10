@@ -32,6 +32,9 @@ export interface CropDef {
   forbiddenSeasons: Season[];
   waterNeed: number;
   yield: [number, number];
+  height?: number; // Visual height in tiles (1 = normal, 2 = tall like trees)
+  multiHarvest?: number; // How many times can harvest before death (e.g., Golden Apple)
+  spawnChance?: number; // Probability to appear in shop refresh (0.0-1.0, for legendary crops)
 }
 
 export interface CropState {
@@ -171,6 +174,14 @@ export interface GlobalMarket {
   nextTradeId: number;
 }
 
+// Shop system - refreshes periodically with limited stock
+export interface ShopState {
+  lastRefreshTick: number;           // When shop was last restocked
+  refreshInterval: number;            // Ticks between refreshes (e.g., 300 = 5 min)
+  stock: Record<CropId, number>;      // Current available quantity per seed
+  maxStock: Record<CropId, number>;   // Max quantity per refresh (tier-based)
+}
+
 export interface SimState {
   tick: number;
   width: number;
@@ -183,6 +194,7 @@ export interface SimState {
   seasonTick: number;
   events: ActiveEvent[];
   market: GlobalMarket;
+  shop: ShopState; // NEW: Dynamic seed shop
 }
 
 export interface StepResult {
