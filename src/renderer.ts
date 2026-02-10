@@ -638,59 +638,70 @@ export class FarmRenderer {
   }
 
   private createAgentActor(agent: Agent): PIXI.Container {
+    const container = new PIXI.Container();
+    container.visible = false; // Hidden until GIF loads
+
     // Try to get cached GIF first (sync)
     const source = getCachedGif(agent.id);
 
-    // If GIF is cached and valid, use it
     if (source && source.frames && source.frames.length > 0 && source.frames[0]) {
-      try {
-        const sprite = new GifSprite({
-          source,
-          autoPlay: true,
-          loop: true,
-          animationSpeed: 1
-        });
-        sprite.anchor.set(0.5, 0.9);
-
-        // Safe bounds check
-        try {
-          const bounds = sprite.getLocalBounds();
-          const baseHeight = bounds?.height || 0;
-          if (baseHeight > 0) {
-            const scale = AGENT_TARGET_HEIGHT / baseHeight;
-            sprite.scale.set(scale);
-          } else {
-            sprite.scale.set(AGENT_FALLBACK_SCALE);
-          }
-        } catch {
-          sprite.scale.set(AGENT_FALLBACK_SCALE);
-        }
-
-        sprite.roundPixels = true;
-        return sprite;
-      } catch (e) {
-        console.warn(`[GIF] Sprite creation failed for ${agent.id}, using fallback:`, e);
+      // GIF already cached - show immediately
+      const sprite = this.createGifSprite(source);
+      if (sprite) {
+        container.addChild(sprite);
+        container.visible = true;
+        return container;
       }
     }
 
-    // If not cached, trigger async load (will update on next render)
-    if (!source) {
-      loadGifForAgent(agent.id).then(() => {
-        // GIF loaded, trigger re-render of this agent on next frame
-        console.log(`[GIF] Loaded for ${agent.id}, will update on next render`);
-      });
-    }
-
-    // Show emoji fallback while loading or if GIF failed
-    const fallback = new PIXI.Text({
-      text: agent.emoji || '🧑‍🌾',
-      style: new PIXI.TextStyle({
-        fontFamily: 'Segoe UI Emoji, Apple Color Emoji, sans-serif',
-        fontSize: 24
-      })
+    // GIF not cached - load async and show when ready
+    loadGifForAgent(agent.id).then((loadedSource) => {
+      if (loadedSource && loadedSource.frames && loadedSource.frames.length > 0) {
+        const sprite = this.createGifSprite(loadedSource);
+        if (sprite) {
+          container.removeChildren(); // Clear any existing content
+          container.addChild(sprite);
+          container.visible = true; // Show agent now that GIF is ready
+          console.log(`[GIF] Agent ${agent.id} now visible with GIF`);
+        }
+      } else {
+        console.warn(`[GIF] Failed to load for ${agent.id}, agent stays hidden`);
+      }
     });
-    fallback.anchor.set(0.5);
-    return fallback;
+
+    return container; // Return invisible container that will be populated async
+  }
+
+  private createGifSprite(source: GifSource): PIXI.Sprite | null {
+    try {
+      const sprite = new GifSprite({
+        source,
+        autoPlay: true,
+        loop: true,
+        animationSpeed: 1
+      });
+      sprite.anchor.set(0.5, 0.9);
+
+      // Safe bounds check
+      try {
+        const bounds = sprite.getLocalBounds();
+        const baseHeight = bounds?.height || 0;
+        if (baseHeight > 0) {
+          const scale = AGENT_TARGET_HEIGHT / baseHeight;
+          sprite.scale.set(scale);
+        } else {
+          sprite.scale.set(AGENT_FALLBACK_SCALE);
+        }
+      } catch {
+        sprite.scale.set(AGENT_FALLBACK_SCALE);
+      }
+
+      sprite.roundPixels = true;
+      return sprite;
+    } catch (e) {
+      console.warn('[GIF] Sprite creation failed:', e);
+      return null;
+    }
   }
 
   // --- Utilities ---
