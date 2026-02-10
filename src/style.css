@@ -1260,6 +1260,13 @@ label[for] {
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
+.crop-icon-img {
+  width: 36px;
+  height: 36px;
+  vertical-align: middle;
+  image-rendering: pixelated;
+}
+
 .seed-card-tier {
   display: inline-flex;
   align-items: center;

@@ -2,6 +2,7 @@ import { View } from './types';
 import { SimEngine } from '../engine/sim';
 import { CROP_DEFS, ALL_CROP_IDS } from '../engine/crops';
 import { ShopPurchase } from '../engine/types';
+import radishIconUrl from '../assets/crops/radish_icon.png';
 
 export class ShopView implements View {
   private el: HTMLElement | null = null;
@@ -44,7 +45,7 @@ export class ShopView implements View {
     // Crop icons per tier
     const cropIcons: Record<string, string> = {
       wheat: '🌾',
-      radish: '🔴',
+      radish: `<img src="${radishIconUrl}" alt="radish" class="crop-icon-img">`,
       carrot: '🥕',
       corn: '🌽',
       tomat: '🍅',
