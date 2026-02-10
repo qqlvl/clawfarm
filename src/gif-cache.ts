@@ -30,35 +30,55 @@ export async function loadGifForAgent(agentId: string): Promise<GifSource | null
     return loadingPromises.get(agentId)!;
   }
 
-  // Start loading
+  // Start loading with fallback retry
   const loadPromise = (async () => {
-    try {
-      // Use hash to pick consistent GIF for this agent
-      const hash = hashString(agentId);
-      const gifIndex = hash % agentGifUrls.length;
-      const gifUrl = agentGifUrls[gifIndex];
+    const hash = hashString(agentId);
+    const maxAttempts = 5; // Try up to 5 different GIFs
 
-      console.log(`[GIF] Loading for agent ${agentId}: ${gifUrl.split('/').pop()}`);
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        // Use hash + attempt offset to pick different GIF on retry
+        const gifIndex = (hash + attempt) % agentGifUrls.length;
+        const gifUrl = agentGifUrls[gifIndex];
 
-      const response = await fetch(gifUrl);
-      const buffer = await response.arrayBuffer();
-      const src = GifSource.from(buffer, { fps: 10 });
+        if (attempt === 0) {
+          console.log(`[GIF] Loading for agent ${agentId}: ${gifUrl.split('/').pop()}`);
+        } else {
+          console.log(`[GIF] Retry ${attempt} for ${agentId}: ${gifUrl.split('/').pop()}`);
+        }
 
-      // Validate GIF source
-      if (src && src.frames && src.frames.length > 0 && src.frames[0]) {
-        gifCache.set(agentId, src);
-        console.log(`[GIF] Loaded successfully for ${agentId}`);
-        return src;
-      } else {
-        console.warn(`[GIF] Invalid GIF for ${agentId}, frames missing`);
-        return null;
+        const response = await fetch(gifUrl);
+        if (!response.ok) {
+          console.warn(`[GIF] Fetch failed (${response.status}), trying next...`);
+          continue; // Try next GIF
+        }
+
+        const buffer = await response.arrayBuffer();
+        const src = GifSource.from(buffer, { fps: 10 });
+
+        // Validate GIF source
+        if (src && src.frames && src.frames.length > 0 && src.frames[0]) {
+          gifCache.set(agentId, src);
+          if (attempt > 0) {
+            console.log(`[GIF] ✅ Loaded on retry ${attempt} for ${agentId}`);
+          } else {
+            console.log(`[GIF] ✅ Loaded successfully for ${agentId}`);
+          }
+          return src;
+        } else {
+          console.warn(`[GIF] Invalid frames, trying next GIF...`);
+          continue; // Try next GIF
+        }
+      } catch (error) {
+        console.warn(`[GIF] Load error (attempt ${attempt}):`, error);
+        // Try next GIF
       }
-    } catch (error) {
-      console.error(`[GIF] Failed to load for ${agentId}:`, error);
-      return null;
-    } finally {
-      loadingPromises.delete(agentId);
     }
+
+    // All attempts failed
+    console.error(`[GIF] ❌ Failed all ${maxAttempts} attempts for ${agentId}`);
+    loadingPromises.delete(agentId);
+    return null;
   })();
 
   loadingPromises.set(agentId, loadPromise);
