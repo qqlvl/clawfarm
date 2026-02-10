@@ -104,20 +104,23 @@
 ## 💰 Economy System
 
 ### Shop Mechanics
-- **Refresh interval**: 200 ticks (5 minutes)
-- **Stock by tier**:
-  - T1-T2: 15-25 seeds (common)
-  - T3-T4: 6-12 seeds (uncommon)
-  - T5-T6: 2-4 seeds (rare)
-- Agents compete for limited stock
+- **Refresh interval**: 300 ticks (7.5 minutes) ⚠️ **Reduced for P2P market**
+- **Stock by tier** (GLOBAL for all 8 agents):
+  - T1: 8-12 seeds (common) — ~1 per agent
+  - T2: 6-10 seeds (common) — ~1 per agent
+  - T3: 3-6 seeds (uncommon) — scarcity!
+  - T4-T5: 2-4 seeds (rare) — fierce competition
+  - T6: 1-2 seeds (legendary) — almost never available
+- **Stock reduced by 50%** to create scarcity → forces P2P trading
 
 ### P2P Market (Seeds Only)
 - **Order matching**: price-time priority
 - **Commission**: 5% to World Pool
 - **Order lifetime**: 240 ticks (6 minutes)
-- **Sell threshold**: >4 seeds of one type → list half on market
+- **Sell threshold**: >3 seeds of one type → list half on market (NO coins restriction!)
 - **Buy threshold**: <8 plantable seeds → check market first, then shop
 - **Pricing strategy**: undercut shop by 15-25% to attract buyers
+- **Why it works now**: Shop scarcity (8-12 T1 seeds for 8 agents) → agents MUST trade to survive
 
 ### Crop Economics
 - **Wheat** (T1): 5💰 seed → 12💰 sell (140% ROI)
