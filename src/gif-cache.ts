@@ -16,7 +16,7 @@ export function getAgentGifUrls(): string[] {
 
 // Progressive loading: load 15 GIF immediately, rest in background
 const INITIAL_GIFS = 15;  // Enough for 8 agents + buffer
-const MAX_GIFS_TO_LOAD = 100;
+export const MAX_GIFS_TO_LOAD = 100;  // Exported for stable hash calculation
 
 async function loadGifBatch(urls: string[]): Promise<GifSource[]> {
   // Load in parallel for speed

@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { GifSource, GifSprite } from 'pixi.js/gif';
 import { Agent, CropState, Farm, Season, SimState, Tile } from './engine/types';
-import { getAgentGifSources } from './gif-cache';
+import { getAgentGifSources, MAX_GIFS_TO_LOAD } from './gif-cache';
 import { SPRITE_URLS } from './sprite-urls';
 import tilemapPng from './assets/tiles/tilemap.png';
 
@@ -688,7 +688,10 @@ export class FarmRenderer {
   private getAgentGifSource(agent: Agent): GifSource | null {
     if (this.agentGifSources.length === 0) return null;
     const hash = this.hashString(agent.id);
-    return this.agentGifSources[hash % this.agentGifSources.length];
+    // Use stable divisor (MAX_GIFS_TO_LOAD) to ensure same agent always gets same GIF
+    // even as more GIFs load in background
+    const stableIndex = hash % MAX_GIFS_TO_LOAD;
+    return this.agentGifSources[stableIndex % this.agentGifSources.length];
   }
 
   // --- Utilities ---
