@@ -22,7 +22,10 @@ export class LandingView implements View {
           <a href="#/market" class="btn-secondary">P2P Market</a>
           <a href="#/leaderboard" class="btn-secondary">Leaderboard</a>
         </div>
-        <button id="reset-world-btn" class="btn-danger" style="margin-top: 20px;">Reset World</button>
+        ${window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? '<button id="reset-world-btn" class="btn-danger" style="margin-top: 20px;">🔧 Reset World (Dev)</button>'
+          : ''
+        }
       </div>
 
       <div class="landing-features">
