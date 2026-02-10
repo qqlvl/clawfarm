@@ -180,7 +180,7 @@ export class AgentAI {
     const concurrentCrops = tiles.filter(t => t.type === 'farmland' && t.crop).length;
     const excessSeeds = this.findExcessSeeds(agent);
     if (excessSeeds && concurrentCrops > 0) {
-      const marketSell = this.createMarketSellOrder(excessSeeds, 'seed');
+      const marketSell = this.createMarketSellOrder(excessSeeds, 'seed', agent, season);
       candidates.push({
         action: 'market_sell',
         score: 35,
@@ -544,20 +544,41 @@ export class AgentAI {
 
   /**
    * Create market sell order with pricing strategy
-   * Undercuts shop by 15-25% (randomized) to attract buyers
+   * Dynamic pricing based on season, agent wealth, and tier upgrade strategy
    */
   private createMarketSellOrder(
     item: { cropId: CropId; quantity: number },
-    itemType: ItemType
+    itemType: ItemType,
+    agent: Agent,
+    season: Season
   ): { type: OrderType; itemType: ItemType; cropId: CropId; quantity: number; pricePerUnit: number } {
     const def = CROP_DEFS[item.cropId];
     const shopPrice = itemType === 'seed' ? def.seedCost : def.sellPrice;
 
-    // Undercut shop by 15-25% to attract buyers
-    const discount = 0.15 + Math.random() * 0.10;
+    let discount = 0.15 + Math.random() * 0.10; // Base: 15-25%
+
+    // USE CASE 1: Seasonal Trading - off-season seeds cheaper
+    const isOffSeason = def.forbiddenSeasons.includes(season) ||
+                        (def.badSeasons && def.badSeasons.includes(season));
+    if (isOffSeason) {
+      discount += 0.15; // Off-season: 30-40% discount (dump unwanted seeds)
+    }
+
+    // USE CASE 2: Emergency Cash - desperate agents sell cheaper
+    if (agent.inventory.coins < 10) {
+      discount += 0.10; // Desperate: extra 10% off (need coins NOW)
+    }
+
+    // USE CASE 3: Tier Upgrade Strategy - dumping low-tier for high-tier
+    const totalSeeds = this.totalSeeds(agent);
+    const lowTierDumping = def.tier <= 2 && totalSeeds > 10 && agent.inventory.coins < 50;
+    if (lowTierDumping) {
+      discount += 0.10; // Dumping T1-T2 to upgrade: extra 10% off
+    }
+
     const marketPrice = Math.max(
       Math.round(shopPrice * (1 - discount)),
-      Math.round(shopPrice * 0.30) // Price floor: never go below 30% of shop price
+      Math.round(shopPrice * 0.25) // Price floor: never below 25% (was 30%)
     );
 
     return {
@@ -571,18 +592,37 @@ export class AgentAI {
 
   /**
    * Find excess seeds to sell on market
-   * Returns seed type and quantity if agent has >3 of any seed
-   * Lowered to 3 for active P2P market trading
+   * USE CASE 2: Emergency cash - lower threshold when desperate
+   * Normal: >3 seeds → sell half
+   * Emergency (<10 coins): >2 seeds → sell 1-2 only
    */
   private findExcessSeeds(agent: Agent): { cropId: CropId; quantity: number } | null {
+    // Emergency mode: desperate for coins (e.g., need to buy farmland)
+    const isEmergency = agent.inventory.coins < 10;
+    const threshold = isEmergency ? 2 : 3;
+
+    // Find highest count seed type to sell
+    let best: { cropId: CropId; count: number } | null = null;
     for (const [cropId, count] of Object.entries(agent.inventory.seeds)) {
-      if (count && count > 3) {
-        return {
-          cropId: cropId as CropId,
-          quantity: Math.floor(count / 2) // Sell half
-        };
+      if (count && count > threshold) {
+        if (!best || count > best.count) {
+          best = { cropId: cropId as CropId, count };
+        }
       }
     }
+
+    if (best) {
+      // Emergency: sell less (1-2 seeds only), Normal: sell half
+      const quantity = isEmergency
+        ? Math.min(2, Math.floor(best.count / 3)) // Emergency: 1-2 seeds
+        : Math.floor(best.count / 2); // Normal: half
+
+      return {
+        cropId: best.cropId,
+        quantity: Math.max(1, quantity) // At least 1
+      };
+    }
+
     return null;
   }
 
