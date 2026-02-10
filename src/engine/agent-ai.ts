@@ -84,14 +84,21 @@ export class AgentAI {
           candidates.push({ action: 'harvesting', score: 100 - dist * 0.5, tx: wx, ty: wy, ticks: 2 });
         }
 
-        // Water dry crops — urgent if health dropping
-        if (tile.type === 'farmland' && tile.crop && !tile.crop.watered && tile.moisture < 0.5
+        // Water crops based on ticksSinceWatered (not moisture!)
+        // Water before dryThreshold (30%) to prevent health loss
+        if (tile.type === 'farmland' && tile.crop && !tile.crop.watered
             && tile.crop.stage !== 'harvestable') {
-          let waterScore = 70 - dist * 0.5;
-          // Boost priority for wilting crops
-          if (tile.crop.health < 50) waterScore += 30;
-          else if (tile.crop.health < 80) waterScore += 10;
-          candidates.push({ action: 'watering', score: waterScore, tx: wx, ty: wy, ticks: 1 });
+          const def = CROP_DEFS[tile.crop.cropId];
+          const wateringThreshold = def.growTicks * 0.15; // Water at 15% of growTicks
+          const needsWater = tile.crop.ticksSinceWatered > wateringThreshold;
+
+          if (needsWater) {
+            let waterScore = 70 - dist * 0.5;
+            // Boost priority for wilting crops
+            if (tile.crop.health < 50) waterScore += 30;
+            else if (tile.crop.health < 80) waterScore += 10;
+            candidates.push({ action: 'watering', score: waterScore, tx: wx, ty: wy, ticks: 1 });
+          }
         }
 
         // Plant on empty farmland
