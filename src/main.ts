@@ -93,11 +93,6 @@ class RemoteSimEngine {
 
 const engine = new RemoteSimEngine();
 
-// Pre-load GIF sources in background
-getAgentGifSources().then(sources => {
-  console.log(`Pre-loaded ${sources.length} agent GIF sources`);
-});
-
 let currentView: View | null = null;
 let simTimer: number | null = null;
 let renderTimer: number | null = null;
@@ -287,6 +282,11 @@ const router = new Router((route) => {
 
 // Initialize
 (async () => {
+  // Load GIF sources BEFORE starting app (prevent emoji fallback on first render)
+  console.log('[Main] Pre-loading GIF sources...');
+  await getAgentGifSources().catch(e => console.warn('GIF preload failed:', e));
+  console.log('[Main] GIF sources loaded');
+
   await loadInitialState();
   subscribeToState();
   startLoops();
