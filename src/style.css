@@ -1100,6 +1100,314 @@ label[for] {
   transform: translateY(-2px);
 }
 
+/* ─── Shop View ─── */
+
+.shop-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.shop-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--border-warm);
+}
+
+.shop-title {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.shop-title h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.shop-tick {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.shop-timer-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  background: var(--bg-card);
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-warm);
+}
+
+.timer-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.timer-countdown {
+  font-size: 20px;
+  color: var(--accent-gold);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Shop Info Banner */
+
+.shop-info-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, rgba(232, 193, 112, 0.08) 0%, rgba(232, 193, 112, 0.03) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+  font-size: 13px;
+}
+
+.info-item {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.info-divider {
+  color: var(--text-muted);
+  opacity: 0.4;
+}
+
+/* Seed Cards Grid */
+
+.seed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.seed-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  box-shadow: var(--shadow-card);
+}
+
+.seed-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Tier-specific borders */
+.seed-card.tier-1, .seed-card.tier-2 {
+  border-color: rgba(106, 176, 76, 0.3);
+}
+
+.seed-card.tier-3, .seed-card.tier-4 {
+  border-color: rgba(232, 193, 112, 0.4);
+}
+
+.seed-card.tier-5, .seed-card.tier-6 {
+  border-color: rgba(155, 89, 182, 0.5);
+}
+
+.seed-card:hover.tier-1, .seed-card:hover.tier-2 {
+  border-color: rgba(106, 176, 76, 0.6);
+}
+
+.seed-card:hover.tier-3, .seed-card:hover.tier-4 {
+  border-color: rgba(232, 193, 112, 0.7);
+}
+
+.seed-card:hover.tier-5, .seed-card:hover.tier-6 {
+  border-color: rgba(155, 89, 182, 0.8);
+}
+
+/* Out of stock overlay */
+.seed-card.stock-out {
+  opacity: 0.6;
+  filter: grayscale(0.4);
+}
+
+.seed-card.stock-out:hover {
+  transform: translateY(-2px);
+}
+
+/* Card Header */
+
+.seed-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 12px;
+  background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-card) 100%);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.seed-card-icon {
+  font-size: 36px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.seed-card-tier {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 22px;
+  padding: 0 8px;
+  background: var(--accent-gold);
+  color: var(--bg-deep);
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 12px;
+  letter-spacing: 0.05em;
+}
+
+/* Card Body */
+
+.seed-card-body {
+  padding: 16px 18px;
+}
+
+.seed-card-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 14px 0;
+  letter-spacing: -0.01em;
+}
+
+.seed-card-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.seed-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.seed-stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.seed-stat-value {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.seed-stat.highlight .seed-stat-value {
+  color: var(--accent-green);
+  font-size: 15px;
+}
+
+/* Card Footer */
+
+.seed-card-footer {
+  padding: 12px 18px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+  text-align: center;
+}
+
+.stock-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.stock-badge.stock-available {
+  background: rgba(106, 176, 76, 0.15);
+  color: var(--accent-green);
+}
+
+.stock-badge.stock-warning {
+  background: rgba(230, 126, 34, 0.15);
+  color: #e67e22;
+}
+
+.stock-badge.stock-empty {
+  background: rgba(149, 165, 166, 0.15);
+  color: var(--text-muted);
+}
+
+/* Shop Legend */
+
+.shop-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  flex-wrap: wrap;
+}
+
+.legend-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.legend-badges {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.legend-badge {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.legend-badge.tier-1 {
+  background: rgba(106, 176, 76, 0.15);
+  color: var(--accent-green);
+  border: 1px solid rgba(106, 176, 76, 0.3);
+}
+
+.legend-badge.tier-3 {
+  background: rgba(232, 193, 112, 0.15);
+  color: var(--accent-gold);
+  border: 1px solid rgba(232, 193, 112, 0.3);
+}
+
+.legend-badge.tier-5 {
+  background: rgba(155, 89, 182, 0.15);
+  color: #9b59b6;
+  border: 1px solid rgba(155, 89, 182, 0.3);
+}
+
 /* ─── Responsive ─── */
 
 @media (max-width: 768px) {
@@ -1122,5 +1430,28 @@ label[for] {
 
   .farm-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  .seed-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shop-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .shop-timer-box {
+    width: 100%;
+    align-items: center;
+  }
+
+  .shop-info-banner {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .info-divider {
+    display: none;
   }
 }

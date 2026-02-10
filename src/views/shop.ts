@@ -38,10 +38,20 @@ export class ShopView implements View {
     const secondsUntilRefresh = Math.floor(((ticksUntilRefresh * 1.5) % 60));
     const timerStr = ticksUntilRefresh > 0
       ? `${minutesUntilRefresh}:${secondsUntilRefresh.toString().padStart(2, '0')}`
-      : 'Restocking...';
+      : '🔄 Restocking...';
 
-    // Render seed items grouped by tier
-    const seedItems = ALL_CROP_IDS
+    // Crop icons per tier
+    const cropIcons: Record<string, string> = {
+      wheat: '🌾',
+      radish: '🥕',
+      carrot: '🥕',
+      corn: '🌽',
+      tomat: '🍅',
+      pumpkin: '🎃'
+    };
+
+    // Render seed cards grouped by tier
+    const seedCards = ALL_CROP_IDS
       .map(cropId => {
         const def = CROP_DEFS[cropId];
         const stock = shop.stock[cropId] || 0;
@@ -49,26 +59,43 @@ export class ShopView implements View {
         const outOfStock = stock === 0;
         const lowStock = stock > 0 && stock <= maxStock * 0.3;
 
-        const stockClass = outOfStock ? 'out-of-stock' : lowStock ? 'low-stock' : '';
+        const stockClass = outOfStock ? 'stock-out' : lowStock ? 'stock-low' : 'stock-ok';
+        const roi = Math.round(((def.sellPrice * 2 - def.seedCost) / def.seedCost) * 100);
+        const icon = cropIcons[cropId] || '🌱';
 
         return `
-          <div class="seed-item ${stockClass}">
-            <div class="seed-info">
-              <div class="seed-name">
-                <span class="seed-icon">🌱</span>
-                <span class="seed-label">${def.name} Seeds</span>
-                <span class="seed-tier tier-${def.tier}">T${def.tier}</span>
-              </div>
-              <div class="seed-details">
-                <span class="seed-price">${def.seedCost} 💰</span>
-                <span class="seed-yield">→ ${def.sellPrice} 💰</span>
-                <span class="seed-grow">${def.growTicks}t</span>
+          <div class="seed-card tier-${def.tier} ${stockClass}">
+            <div class="seed-card-header">
+              <span class="seed-card-icon">${icon}</span>
+              <span class="seed-card-tier">T${def.tier}</span>
+            </div>
+            <div class="seed-card-body">
+              <h3 class="seed-card-title">${def.name}</h3>
+              <div class="seed-card-stats">
+                <div class="seed-stat">
+                  <span class="seed-stat-label">Cost</span>
+                  <span class="seed-stat-value">${def.seedCost} 💰</span>
+                </div>
+                <div class="seed-stat">
+                  <span class="seed-stat-label">Sells for</span>
+                  <span class="seed-stat-value">${def.sellPrice} 💰</span>
+                </div>
+                <div class="seed-stat">
+                  <span class="seed-stat-label">Time</span>
+                  <span class="seed-stat-value">${def.growTicks}t</span>
+                </div>
+                <div class="seed-stat highlight">
+                  <span class="seed-stat-label">ROI</span>
+                  <span class="seed-stat-value">~${roi}%</span>
+                </div>
               </div>
             </div>
-            <div class="seed-stock">
+            <div class="seed-card-footer">
               ${outOfStock
-                ? '<span class="stock-empty">Out of Stock</span>'
-                : `<span class="stock-count">${stock}/${maxStock} in stock</span>`
+                ? '<span class="stock-badge stock-empty">💤 Out of Stock</span>'
+                : lowStock
+                  ? `<span class="stock-badge stock-warning">⚠️ ${stock}/${maxStock} left</span>`
+                  : `<span class="stock-badge stock-available">✓ ${stock}/${maxStock} available</span>`
               }
             </div>
           </div>
@@ -77,39 +104,36 @@ export class ShopView implements View {
       .join('');
 
     this.el.innerHTML = `
-      <div class="shop-container">
+      <div class="shop-wrapper">
         <div class="shop-header">
-          <h1>🏪 Seed Shop</h1>
-          <div class="shop-timer">
-            <span class="timer-label">Next Restock:</span>
-            <span class="timer-value">${timerStr}</span>
+          <div class="shop-title">
+            <h2>🏪 Seed Shop</h2>
+            <span class="shop-tick">Tick ${state.tick}</span>
+          </div>
+          <div class="shop-timer-box">
+            <span class="timer-label">Next Restock</span>
+            <span class="timer-countdown">${timerStr}</span>
           </div>
         </div>
 
-        <div class="shop-info">
-          <p class="info-text">
-            🌱 Seeds refresh every <strong>5 minutes</strong> (300 ticks)
-          </p>
-          <p class="info-text">
-            📦 Higher tier seeds are rarer - grab them fast!
-          </p>
+        <div class="shop-info-banner">
+          <span class="info-item">🌱 Refreshes every 5 minutes</span>
+          <span class="info-divider">•</span>
+          <span class="info-item">📦 Higher tiers = rarer stock</span>
+          <span class="info-divider">•</span>
+          <span class="info-item">💰 Agents compete for seeds!</span>
         </div>
 
-        <div class="shop-content">
-          <div class="seed-list">
-            ${seedItems}
-          </div>
+        <div class="seed-grid">
+          ${seedCards}
         </div>
 
         <div class="shop-legend">
-          <div class="legend-item">
-            <span class="tier-badge tier-1">T1-T2</span> Common (15-25 seeds)
-          </div>
-          <div class="legend-item">
-            <span class="tier-badge tier-3">T3-T4</span> Uncommon (4-12 seeds)
-          </div>
-          <div class="legend-item">
-            <span class="tier-badge tier-5">T5-T6</span> Rare (2-4 seeds)
+          <span class="legend-label">Rarity Guide:</span>
+          <div class="legend-badges">
+            <span class="legend-badge tier-1">T1-T2 Common</span>
+            <span class="legend-badge tier-3">T3-T4 Uncommon</span>
+            <span class="legend-badge tier-5">T5-T6 Rare</span>
           </div>
         </div>
       </div>
