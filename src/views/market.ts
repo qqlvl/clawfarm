@@ -64,7 +64,7 @@ export class MarketView implements View {
           <h1>🏪 P2P Market</h1>
           <div class="world-pool">
             <span class="pool-label">World Pool:</span>
-            <span class="pool-amount">${state.market.worldPoolCoins} 🪙</span>
+            <span class="pool-amount">${state.market.worldPoolCoins} 💰</span>
           </div>
         </div>
 
@@ -215,7 +215,7 @@ export class MarketView implements View {
         <td>${itemTypeLabel}</td>
         <td>${order.quantity}</td>
         <td class="${priceClass}">
-          ${order.pricePerUnit}🪙 ${priceLabel}
+          ${order.pricePerUnit}💰 ${priceLabel}
           <span class="shop-compare">(shop: ${shopPrice})</span>
         </td>
         <td class="agent-cell">${agentName}</td>
@@ -266,11 +266,11 @@ export class MarketView implements View {
             </div>
             <div class="trade-detail">
               <span class="trade-label">Price:</span>
-              <span class="trade-value">${trade.pricePerUnit}🪙 each (${trade.totalPrice}🪙 total)</span>
+              <span class="trade-value">${trade.pricePerUnit}💰 each (${trade.totalPrice}💰 total)</span>
             </div>
             <div class="trade-detail commission">
               <span class="trade-label">Commission:</span>
-              <span class="trade-value">${trade.commission}🪙 (3%)</span>
+              <span class="trade-value">${trade.commission}💰 (3%)</span>
             </div>
           </div>
         </div>
@@ -320,12 +320,12 @@ export class MarketView implements View {
       const def = CROP_DEFS[cropId];
       const prices = avgPricesByCrop.get(cropId)!;
 
-      const seedMarketPrice = prices.seed !== null ? `${prices.seed}🪙` : '-';
+      const seedMarketPrice = prices.seed !== null ? `${prices.seed}💰` : '-';
       const seedDiscount = prices.seed !== null
         ? `${Math.round((1 - prices.seed / def.seedCost) * 100)}%`
         : '-';
 
-      const cropMarketPrice = prices.crop !== null ? `${prices.crop}🪙` : '-';
+      const cropMarketPrice = prices.crop !== null ? `${prices.crop}💰` : '-';
       const cropDiscount = prices.crop !== null
         ? `${Math.round((1 - prices.crop / def.sellPrice) * 100)}%`
         : '-';
@@ -333,10 +333,10 @@ export class MarketView implements View {
       return `
         <tr>
           <td class="crop-name">${def.name}</td>
-          <td>${def.seedCost}🪙</td>
+          <td>${def.seedCost}💰</td>
           <td class="market-price">${seedMarketPrice}</td>
           <td class="discount">${seedDiscount}</td>
-          <td>${def.sellPrice}🪙</td>
+          <td>${def.sellPrice}💰</td>
           <td class="market-price">${cropMarketPrice}</td>
           <td class="discount">${cropDiscount}</td>
         </tr>
@@ -357,12 +357,12 @@ export class MarketView implements View {
             <div class="stat-detail">All time</div>
           </div>
           <div class="stat-card">
-            <div class="market-stat-value">${totalVolume}🪙</div>
+            <div class="market-stat-value">${totalVolume}💰</div>
             <div class="market-stat-label">Trade Volume</div>
             <div class="stat-detail">Total coins traded</div>
           </div>
           <div class="stat-card highlight">
-            <div class="market-stat-value">${totalCommission}🪙</div>
+            <div class="market-stat-value">${totalCommission}💰</div>
             <div class="market-stat-label">World Pool</div>
             <div class="stat-detail">3% commission collected</div>
           </div>
