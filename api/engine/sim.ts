@@ -14,7 +14,7 @@ const DEFAULT_CONFIG: SimConfig = {
   seasonLength: 360,
   eventChance: 0.003,
   startingCoins: 50,
-  startingSeeds: { wheat: 5 }
+  startingSeeds: { wheat: 4 } // Reduced from 5 for slower progression
 };
 
 const AGENT_EMOJIS = ['🧑', '👩‍🌾', '🧑', '🧑', '🧑'];
@@ -126,18 +126,29 @@ export class SimEngine {
     // 1. Season advancement
     this.tickSeason();
 
-    // 2. Expire old events
+    // 2. Shop refresh (every 300 ticks)
+    const ticksSinceRefresh = this.state.tick - this.state.shop.lastRefreshTick;
+    if (ticksSinceRefresh >= this.state.shop.refreshInterval) {
+      this.state.shop = this.generateShopStock(this.state.tick);
+      this.pushLog({
+        tick: this.state.tick,
+        message: '🏪 Shop restocked with fresh seeds!',
+        level: 'event'
+      });
+    }
+
+    // 3. Expire old events
     this.state.events = this.state.events.filter(e =>
       this.state.tick < e.startTick + e.duration
     );
 
-    // 3. Roll for new events (only for farms with agents)
+    // 4. Roll for new events (only for farms with agents)
     this.tickEvents();
 
-    // 4. Crop growth
+    // 5. Crop growth
     this.tickCrops(changedTiles);
 
-    // 5. Agent AI
+    // 6. Agent AI
     for (const agent of this.state.agents) {
       const farm = this.state.farms.find(f => f.id === agent.farmId);
       if (!farm) continue;
@@ -290,13 +301,15 @@ export class SimEngine {
       // Growth rate
       let growRate = 1.0 / def.growTicks;
 
-      // Season modifier
-      if (def.forbiddenSeasons.includes(this.state.season)) {
-        growRate = 0;
-        crop.health = Math.max(0, crop.health - 0.15);
-      } else if (def.preferredSeasons.length > 0 && !def.preferredSeasons.includes(this.state.season)) {
-        growRate *= 0.5;
+      // Soft season modifier (no death, only speed changes)
+      let seasonMultiplier = 1.0; // Neutral by default
+      if (def.preferredSeasons.includes(this.state.season)) {
+        seasonMultiplier = 1.25; // Ideal season: 25% faster growth
+      } else if (def.badSeasons && def.badSeasons.includes(this.state.season)) {
+        seasonMultiplier = 0.5; // Bad season: 50% slower growth
       }
+      // All other seasons are neutral (1.0×)
+      growRate *= seasonMultiplier;
 
       // Moisture modifier
       if (tile.moisture < 0.2) {
@@ -448,7 +461,8 @@ export class SimEngine {
         worldPoolCoins: 0,
         nextOrderId: 1,
         nextTradeId: 1
-      }
+      },
+      shop: this.generateShopStock(0) // Initialize with stock at tick 0
     };
   }
 
@@ -466,7 +480,8 @@ export class SimEngine {
           y: row * this.config.farmSize,
           width: this.config.farmSize,
           height: this.config.farmSize,
-          houseX, houseY
+          houseX, houseY,
+          tilledCount: 0 // Start with 0 tilled tiles, first 4 are free
         });
       }
     }
@@ -541,6 +556,39 @@ export class SimEngine {
     n = (n ^ (n >> 13)) * 1274126177;
     n ^= n >> 16;
     return (n >>> 0) / 4294967296;
+  }
+
+  /**
+   * Generate shop stock for the current refresh
+   * Stock limits based on crop tier from spec
+   */
+  private generateShopStock(tick: number): import('./types.js').ShopState {
+    const stock: Record<string, number> = {};
+    const maxStock: Record<string, number> = {};
+
+    // Stock ranges by tier (from spec section 2)
+    const stockRanges: Record<number, [number, number]> = {
+      1: [15, 25], // Common
+      2: [12, 20], // Common
+      3: [6, 12],  // Uncommon
+      4: [4, 8],   // Uncommon
+      5: [2, 4],   // Rare
+      6: [2, 4]    // Rare
+    };
+
+    for (const [cropId, def] of Object.entries(CROP_DEFS)) {
+      const [min, max] = stockRanges[def.tier] || [10, 20];
+      const quantity = this.rng.nextInt(min, max);
+      stock[cropId] = quantity;
+      maxStock[cropId] = max;
+    }
+
+    return {
+      lastRefreshTick: tick,
+      refreshInterval: 300, // 5 minutes at 1.5s per tick
+      stock: stock as Record<import('./types.js').CropId, number>,
+      maxStock: maxStock as Record<import('./types.js').CropId, number>
+    };
   }
 
   private pushLog(entry: LogEntry): void {

@@ -18,6 +18,7 @@ export class LandingView implements View {
         </p>
         <div class="landing-buttons">
           <a href="#/farms" class="btn-primary">View Farms</a>
+          <a href="#/shop" class="btn-secondary">🏪 Seed Shop</a>
           <a href="#/market" class="btn-secondary">P2P Market</a>
           <a href="#/leaderboard" class="btn-secondary">Leaderboard</a>
         </div>

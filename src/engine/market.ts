@@ -13,7 +13,7 @@ import { CROP_DEFS } from './crops';
 import { Rng } from './random';
 
 const ORDER_LIFETIME = 240; // Ticks before order expires (6 min at default speed)
-const COMMISSION_RATE = 0.03; // 3% commission
+const COMMISSION_RATE = 0.05; // 5% commission (increased for seed-only market)
 const MAX_TRADE_HISTORY = 100; // Keep last 100 trades
 
 export class MarketEngine {

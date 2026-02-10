@@ -3,7 +3,8 @@ export type Route =
   | { view: 'farms'; page: number }
   | { view: 'farm'; row: number; col: number }
   | { view: 'leaderboard' }
-  | { view: 'market' };
+  | { view: 'market' }
+  | { view: 'shop' };
 
 export type RouteHandler = (route: Route) => void;
 
@@ -42,6 +43,10 @@ export class Router {
 
     if (hash === '#/market') {
       return { view: 'market' };
+    }
+
+    if (hash === '#/shop') {
+      return { view: 'shop' };
     }
 
     return { view: 'landing' };

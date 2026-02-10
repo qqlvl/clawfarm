@@ -28,8 +28,9 @@ export interface CropDef {
   growTicks: number;
   sellPrice: number;
   seedCost: number;
-  preferredSeasons: Season[];
-  forbiddenSeasons: Season[];
+  preferredSeasons: Season[]; // Ideal seasons (×1.25 speed, +1 yield)
+  forbiddenSeasons: Season[]; // DEPRECATED: Use badSeasons instead
+  badSeasons: Season[]; // Bad seasons (×0.5 speed, -1 yield)
   waterNeed: number;
   yield: [number, number];
   height?: number; // Visual height in tiles (1 = normal, 2 = tall like trees)
@@ -94,6 +95,7 @@ export interface Farm {
   height: number;
   houseX: number;
   houseY: number;
+  tilledCount: number; // Number of farmland tiles created (for cost calculation)
 }
 
 export interface AgentStats {

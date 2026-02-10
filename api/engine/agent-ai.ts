@@ -1,5 +1,5 @@
 import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile, SimState, GlobalMarket, ItemType, OrderType } from './types.js';
-import { CROP_DEFS, ALL_CROP_IDS } from './crops.js';
+import { CROP_DEFS, ALL_CROP_IDS, calculateTileCost } from './crops.js';
 import { Rng } from './random.js';
 import { marketEngine } from './market.js';
 
@@ -112,33 +112,32 @@ export class AgentAI {
         // Till grass (not edges, not near water/house)
         if (tile.type === 'grass' && lx > 2 && lx < farmSize - 1 && ly > 2 && ly < farmSize - 1) {
           const farmlandCount = tiles.filter(t => t.type === 'farmland').length;
-          if (farmlandCount < farmSize * farmSize * 0.35 && this.totalSeeds(agent) > 0) {
-            candidates.push({ action: 'tilling', score: 30 - dist * 0.5, tx: wx, ty: wy, ticks: 3 });
+          const tileCost = calculateTileCost(farm.tilledCount);
+
+          // Only consider tilling if:
+          // 1. Haven't expanded too much yet (< 35% of farm)
+          // 2. Have seeds to plant OR have enough money for both tile + seeds
+          // 3. Can afford the tile cost
+          const canAfford = agent.inventory.coins >= tileCost;
+          const hasSeeds = this.totalSeeds(agent) > 0;
+          const worthExpanding = farmlandCount < farmSize * farmSize * 0.35;
+
+          if (worthExpanding && canAfford && hasSeeds) {
+            // Lower score if expansion is expensive (makes AI prefer buying seeds first)
+            let score = 30 - dist * 0.5;
+            if (tileCost > 50) score -= 10; // Reduce priority for expensive tiles
+            if (tileCost > 100) score -= 10; // Further reduce for very expensive tiles
+
+            candidates.push({ action: 'tilling', score, tx: wx, ty: wy, ticks: 3 });
           }
         }
       }
     }
 
-    // Sell crops — try market first (3-4 crops), then shop (3+ crops)
+    // Sell crops — ONLY to shop (market is for seeds only!)
     const totalCrops = Object.values(agent.inventory.crops).reduce((s, n) => s + (n || 0), 0);
 
-    // Try market for 3-4 crops (undercut shop prices)
-    if (totalCrops >= 3 && totalCrops < 5) {
-      const excessCrop = this.findExcessCrops(agent);
-      if (excessCrop) {
-        const marketSell = this.createMarketSellOrder(excessCrop, 'crop');
-        candidates.push({
-          action: 'market_sell',
-          score: 42,
-          tx: agent.x,
-          ty: agent.y,
-          ticks: 1,
-          marketOrder: marketSell
-        });
-      }
-    }
-
-    // Fallback to shop if have 3+ crops (lowered from 5)
+    // Go to shop to sell crops at fixed prices
     if (totalCrops >= 3) {
       candidates.push({ action: 'selling', score: 40, tx: agent.x, ty: agent.y, ticks: 2 });
     }
@@ -158,8 +157,12 @@ export class AgentAI {
           marketOrder: bestMarketBuy
         });
       } else {
-        // Fallback to shop
-        candidates.push({ action: 'selling', score: 38, tx: agent.x, ty: agent.y, ticks: 1 });
+        // Fallback to shop - but only if shop has stock
+        const shopHasStock = Object.values(state.shop.stock).some(qty => qty > 0);
+        if (shopHasStock) {
+          candidates.push({ action: 'selling', score: 38, tx: agent.x, ty: agent.y, ticks: 1 });
+        }
+        // If shop is empty, agent will wait or do other tasks
       }
     }
 
@@ -228,10 +231,27 @@ export class AgentAI {
     switch (goal.action) {
       case 'tilling':
         if (tile && tile.type === 'grass') {
+          // Calculate cost based on how many tiles already tilled
+          const cost = calculateTileCost(farm.tilledCount);
+
+          // Check if agent can afford it
+          if (agent.inventory.coins < cost) {
+            logs.push(`${agent.name} can't afford to expand (need ${cost}💰, have ${agent.inventory.coins}💰)`);
+            break; // Cancel tilling
+          }
+
+          // Deduct coins if not free
+          if (cost > 0) {
+            agent.inventory.coins -= cost;
+            logs.push(`${agent.name} pays ${cost}💰 to expand farm`);
+          }
+
+          // Perform tilling
           tile.type = 'farmland';
           tile.moisture = 0.3;
+          farm.tilledCount++; // Increment tilled count
           changes.push({ worldIndex: worldIdx, tile });
-          logs.push(`${agent.name} tills the soil`);
+          logs.push(`${agent.name} tills the soil (${farm.tilledCount} tiles total)`);
           energyCost = 8;
         }
         break;
@@ -271,7 +291,20 @@ export class AgentAI {
       case 'harvesting':
         if (tile && tile.crop?.stage === 'harvestable') {
           const def = CROP_DEFS[tile.crop.cropId];
-          const qty = rng.nextInt(def.yield[0], def.yield[1]);
+
+          // Base yield
+          let qty = rng.nextInt(def.yield[0], def.yield[1]);
+
+          // Season yield modifier
+          let yieldModifier = 0; // Neutral by default
+          if (def.preferredSeasons.includes(season)) {
+            yieldModifier = 1; // Ideal season: +1 yield
+          } else if (def.badSeasons && def.badSeasons.includes(season)) {
+            yieldModifier = -1; // Bad season: -1 yield
+          }
+
+          qty = Math.max(1, qty + yieldModifier); // Minimum 1 yield
+
           agent.inventory.crops[tile.crop.cropId] = (agent.inventory.crops[tile.crop.cropId] || 0) + qty;
           const cropName = def.name;
           delete tile.crop;
@@ -304,16 +337,26 @@ export class AgentAI {
           logs.push(`${agent.name} sells crops for ${earned} coins${hasMarketDay ? ' (bonus!)' : ''}`);
         }
 
-        // Buy seeds — prefer highest tier affordable
+        // Buy seeds — prefer highest tier affordable (check shop stock)
         if (agent.inventory.coins >= 5 && this.totalSeeds(agent) < 8) {
           const buyId = this.pickBestAffordableCrop(agent, season);
           if (buyId) {
             const def = CROP_DEFS[buyId];
-            const buyCount = Math.min(3, Math.floor(agent.inventory.coins / def.seedCost));
-            if (buyCount > 0) {
-              agent.inventory.coins -= buyCount * def.seedCost;
-              agent.inventory.seeds[buyId] = (agent.inventory.seeds[buyId] || 0) + buyCount;
-              logs.push(`${agent.name} buys ${buyCount} ${def.name} seeds`);
+            const shopStock = state.shop.stock[buyId] || 0;
+
+            // Check if shop has stock available
+            if (shopStock > 0) {
+              const desiredCount = Math.min(3, Math.floor(agent.inventory.coins / def.seedCost));
+              const buyCount = Math.min(desiredCount, shopStock); // Limited by shop stock
+
+              if (buyCount > 0) {
+                agent.inventory.coins -= buyCount * def.seedCost;
+                agent.inventory.seeds[buyId] = (agent.inventory.seeds[buyId] || 0) + buyCount;
+                state.shop.stock[buyId] = shopStock - buyCount; // Deduct from shop stock
+                logs.push(`${agent.name} buys ${buyCount} ${def.name} seeds (${state.shop.stock[buyId]} left)`);
+              }
+            } else {
+              logs.push(`${agent.name} can't buy ${def.name} — out of stock!`);
             }
           }
         }

@@ -7,6 +7,7 @@ import { FarmGridView } from './views/farm-grid';
 import { FarmDetailView } from './views/farm-detail';
 import { LeaderboardView } from './views/leaderboard';
 import { MarketView } from './views/market';
+import { ShopView } from './views/shop';
 // GIF loading now happens on-demand per agent, no preload needed
 import { supabase } from './supabase-client';
 import type { SimState } from './engine/types';
@@ -62,6 +63,12 @@ class RemoteSimEngine {
           worldPoolCoins: 0,
           nextOrderId: 1,
           nextTradeId: 1
+        },
+        shop: {
+          lastRefreshTick: 0,
+          refreshInterval: 300,
+          stock: {},
+          maxStock: {}
         }
       };
     }
@@ -268,6 +275,9 @@ async function switchView(route: Route): Promise<void> {
       break;
     case 'market':
       currentView = new MarketView(engine);
+      break;
+    case 'shop':
+      currentView = new ShopView(engine);
       break;
   }
 

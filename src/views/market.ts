@@ -61,9 +61,9 @@ export class MarketView implements View {
     this.el.innerHTML = `
       <div class="market-container">
         <div class="market-header">
-          <h1>🏪 P2P Market</h1>
+          <h1>💱 P2P Market - Seeds Only</h1>
           <div class="world-pool">
-            <span class="pool-label">World Pool:</span>
+            <span class="pool-label">World Pool (5% commission):</span>
             <span class="pool-amount">${state.market.worldPoolCoins} 💰</span>
           </div>
         </div>

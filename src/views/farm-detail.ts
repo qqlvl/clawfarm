@@ -2,7 +2,7 @@ import { View } from './types';
 import { SimEngine } from '../engine/sim';
 import { FarmRenderer } from '../renderer';
 import { LogEntry, CropId } from '../engine/types';
-import { CROP_DEFS } from '../engine/crops';
+import { CROP_DEFS, calculateTileCost } from '../engine/crops';
 
 const ACTION_LABEL: Record<string, string> = {
   idle: 'Idle',
@@ -200,6 +200,13 @@ export class FarmDetailView implements View {
         }).join(' ')
       : '<span class="stat-muted">None</span>';
 
+    // Get farm to calculate next tile cost
+    const farm = state.farms.find(f => f.id === this.farmId);
+    const nextTileCost = farm ? calculateTileCost(farm.tilledCount) : 0;
+    const tileCostStr = nextTileCost === 0
+      ? '<span class="stat-success">Free</span>'
+      : `${nextTileCost} 💰`;
+
     this.statsEl.innerHTML = `
       <div class="stat-row">
         <span class="stat-label">Season</span>
@@ -213,6 +220,10 @@ export class FarmDetailView implements View {
       <div class="stat-row">
         <span class="stat-label">Farmland</span>
         <span class="stat-value">${farmlandTiles} tiles (${cropTiles} planted)</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">Next Tile</span>
+        <span class="stat-value">${tileCostStr}</span>
       </div>
       <div class="stat-row">
         <span class="stat-label">Events</span>

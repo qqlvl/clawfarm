@@ -28,8 +28,9 @@ export interface CropDef {
   growTicks: number;
   sellPrice: number;
   seedCost: number;
-  preferredSeasons: Season[];
-  forbiddenSeasons: Season[];
+  preferredSeasons: Season[]; // Ideal seasons (×1.25 speed, +1 yield)
+  forbiddenSeasons: Season[]; // DEPRECATED: Use badSeasons instead
+  badSeasons: Season[]; // Bad seasons (×0.5 speed, -1 yield)
   waterNeed: number;
   yield: [number, number];
 }
@@ -91,6 +92,7 @@ export interface Farm {
   height: number;
   houseX: number;
   houseY: number;
+  tilledCount: number; // Number of farmland tiles created (for cost calculation)
 }
 
 export interface AgentStats {
@@ -171,6 +173,14 @@ export interface GlobalMarket {
   nextTradeId: number;
 }
 
+// Shop system - refreshes periodically with limited stock
+export interface ShopState {
+  lastRefreshTick: number;           // When shop was last restocked
+  refreshInterval: number;            // Ticks between refreshes (e.g., 300 = 5 min)
+  stock: Record<CropId, number>;      // Current available quantity per seed
+  maxStock: Record<CropId, number>;   // Max quantity per refresh (tier-based)
+}
+
 export interface SimState {
   tick: number;
   width: number;
@@ -183,6 +193,7 @@ export interface SimState {
   seasonTick: number;
   events: ActiveEvent[];
   market: GlobalMarket;
+  shop: ShopState; // NEW: Dynamic seed shop
 }
 
 export interface StepResult {
