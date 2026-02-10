@@ -143,7 +143,8 @@ export class AgentAI {
     }
 
     // Buy seeds if low — check market first, then fallback to shop
-    if (this.totalSeeds(agent) < 3 && agent.inventory.coins >= 5) {
+    // Use plantable seeds (season-compatible) to avoid buying when stuck with forbidden seeds
+    if (this.totalPlantableSeeds(agent, season) < 3 && agent.inventory.coins >= 5) {
       const bestMarketBuy = this.findBestMarketBuy(agent, season, state.market);
 
       if (bestMarketBuy) {
@@ -451,6 +452,21 @@ export class AgentAI {
 
   private totalSeeds(agent: Agent): number {
     return Object.values(agent.inventory.seeds).reduce((s, n) => s + (n || 0), 0);
+  }
+
+  /**
+   * Count seeds that can be planted in current season (not forbidden)
+   */
+  private totalPlantableSeeds(agent: Agent, season: Season): number {
+    let count = 0;
+    for (const [cropId, seedCount] of Object.entries(agent.inventory.seeds)) {
+      if (!seedCount || seedCount <= 0) continue;
+      const def = CROP_DEFS[cropId as CropId];
+      // Skip seeds that are forbidden in current season
+      if (def.forbiddenSeasons.includes(season)) continue;
+      count += seedCount;
+    }
+    return count;
   }
 
   /**
