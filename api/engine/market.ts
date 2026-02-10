@@ -165,6 +165,9 @@ export class MarketEngine {
         for (const sellOrder of sellOrders) {
           if (sellOrder.quantity <= 0) continue;
 
+          // Skip self-trades
+          if (buyOrder.agentId === sellOrder.agentId) continue;
+
           // Can these orders match?
           if (buyOrder.pricePerUnit >= sellOrder.pricePerUnit) {
             const matchQty = Math.min(buyOrder.quantity, sellOrder.quantity);
