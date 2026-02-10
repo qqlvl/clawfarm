@@ -36,21 +36,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq('id', 'main')
       .single()
 
-    if (fetchError) throw fetchError
+    // If row doesn't exist (PGRST116 or no rows), treat as empty state and we'll create it
+    const rowNotFound = fetchError && (fetchError.code === 'PGRST116' || fetchError.message?.includes('0 rows'))
 
-    // Check if enough time has passed since last update
-    const lastUpdate = new Date(currentData.updated_at).getTime()
-    const now = Date.now()
-    const timeSinceUpdate = now - lastUpdate
+    if (fetchError && !rowNotFound) {
+      // Real error, not just missing row
+      throw fetchError
+    }
 
-    if (timeSinceUpdate < MIN_TICK_INTERVAL) {
-      // Too soon, return current state without updating
-      return res.status(200).json({
-        state: currentData.state,
-        tick: currentData.tick,
-        skipped: true,
-        nextTickIn: MIN_TICK_INTERVAL - timeSinceUpdate
-      })
+    // Check if enough time has passed since last update (skip if row doesn't exist yet)
+    if (currentData && currentData.updated_at) {
+      const lastUpdate = new Date(currentData.updated_at).getTime()
+      const now = Date.now()
+      const timeSinceUpdate = now - lastUpdate
+
+      if (timeSinceUpdate < MIN_TICK_INTERVAL) {
+        // Too soon, return current state without updating
+        return res.status(200).json({
+          state: currentData.state,
+          tick: currentData.tick,
+          skipped: true,
+          nextTickIn: MIN_TICK_INTERVAL - timeSinceUpdate
+        })
+      }
     }
 
     // Initialize engine
@@ -62,7 +70,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
 
     // Check if state is empty or invalid (first run)
-    const stateIsEmpty = !currentData.state ||
+    const stateIsEmpty = !currentData ||
+                         !currentData.state ||
                          typeof currentData.state !== 'object' ||
                          !currentData.state.tick ||
                          !currentData.state.farms ||
@@ -90,15 +99,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       marketOrders: newState.market?.orders?.length || 0
     })
 
-    // Save back to Supabase
+    // Save back to Supabase (upsert will insert if row doesn't exist)
     const { error: updateError } = await supabase
       .from('game_state')
-      .update({
+      .upsert({
+        id: 'main',
         state: newState,
         tick: newState.tick,
         updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'id'
       })
-      .eq('id', 'main')
 
     if (updateError) {
       console.error('[API /tick] Update error:', updateError)
