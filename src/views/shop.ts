@@ -161,9 +161,11 @@ export class ShopView implements View {
       const def = CROP_DEFS[p.cropId];
       const icon = cropIcons[p.cropId] || '🌱';
       const ticksAgo = currentTick - p.tick;
-      const timeAgo = ticksAgo === 0 ? 'just now'
-        : ticksAgo < 60 ? `${ticksAgo}t ago`
-        : `${Math.floor(ticksAgo / 60)}m ago`;
+      const secondsAgo = Math.round(ticksAgo * 1.5);
+      const timeAgo = secondsAgo === 0 ? 'just now'
+        : secondsAgo < 60 ? `${secondsAgo}s ago`
+        : secondsAgo < 3600 ? `${Math.floor(secondsAgo / 60)}m ${secondsAgo % 60}s ago`
+        : `${Math.floor(secondsAgo / 3600)}h ago`;
 
       return `
         <tr class="purchase-row">

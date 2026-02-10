@@ -239,7 +239,11 @@ export class MarketView implements View {
 
       const itemTypeLabel = trade.itemType === 'seed' ? '🌱' : '🌾';
       const ticksAgo = state.tick - trade.tick;
-      const timeAgo = ticksAgo === 0 ? 'just now' : `${ticksAgo} ticks ago`;
+      const secondsAgo = Math.round(ticksAgo * 1.5);
+      const timeAgo = secondsAgo === 0 ? 'just now'
+        : secondsAgo < 60 ? `${secondsAgo}s ago`
+        : secondsAgo < 3600 ? `${Math.floor(secondsAgo / 60)}m ${secondsAgo % 60}s ago`
+        : `${Math.floor(secondsAgo / 3600)}h ago`;
 
       return `
         <div class="trade-card">
