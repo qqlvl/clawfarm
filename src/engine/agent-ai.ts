@@ -222,7 +222,8 @@ export class AgentAI {
         targetX: chosen.tx,
         targetY: chosen.ty,
         ticksRemaining: chosen.ticks,
-        cropId: chosen.cropId
+        cropId: chosen.cropId,
+        marketOrder: chosen.marketOrder
       },
       tileChanges: [],
       logs: [],
@@ -420,8 +421,14 @@ export class AgentAI {
           if (order) {
             const itemName = CROP_DEFS[order.cropId].name;
             const itemTypeStr = order.itemType === 'seed' ? 'seeds' : 'crops';
-            logs.push(`${agent.name} placed ${order.type} order for ${order.quantity} ${itemName} ${itemTypeStr}`);
+            const shopPrice = order.itemType === 'seed' ? CROP_DEFS[order.cropId].seedCost : CROP_DEFS[order.cropId].sellPrice;
+            const pctOff = Math.round((1 - order.pricePerUnit / shopPrice) * 100);
+            logs.push(`${agent.name} listed ${order.quantity}x ${itemName} ${itemTypeStr} @ ${order.pricePerUnit} (shop: ${shopPrice}, -${pctOff}%)`);
+          } else {
+            console.warn(`[MARKET] ${agent.name} order FAILED:`, JSON.stringify(goal.marketOrder));
           }
+        } else {
+          console.warn(`[MARKET] ${agent.name} ${goal.action} but no marketOrder on goal!`);
         }
         energyCost = 1;
         break;
