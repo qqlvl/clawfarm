@@ -1,7 +1,7 @@
-import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile, SimState, GlobalMarket, ItemType, OrderType } from './types';
-import { CROP_DEFS, ALL_CROP_IDS, calculateTileCost } from './crops';
-import { Rng } from './random';
-import { marketEngine } from './market';
+import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile, SimState, GlobalMarket, ItemType, OrderType } from './types.js';
+import { CROP_DEFS, ALL_CROP_IDS, calculateTileCost } from './crops.js';
+import { Rng } from './random.js';
+import { marketEngine } from './market.js';
 
 interface TileChange {
   worldIndex: number;
@@ -176,9 +176,9 @@ export class AgentAI {
       }
     }
 
-    // Sell excess seeds on market (if have >4 of one type)
+    // Sell excess seeds on market (if have >3 of one type)
     const excessSeeds = this.findExcessSeeds(agent);
-    if (excessSeeds && agent.inventory.coins < 200) {
+    if (excessSeeds) {
       const marketSell = this.createMarketSellOrder(excessSeeds, 'seed');
       candidates.push({
         action: 'market_sell',
@@ -570,12 +570,12 @@ export class AgentAI {
 
   /**
    * Find excess seeds to sell on market
-   * Returns seed type and quantity if agent has >4 of any seed
-   * Lowered from 8 to 4 to kickstart market trading
+   * Returns seed type and quantity if agent has >3 of any seed
+   * Lowered to 3 for active P2P market trading
    */
   private findExcessSeeds(agent: Agent): { cropId: CropId; quantity: number } | null {
     for (const [cropId, count] of Object.entries(agent.inventory.seeds)) {
-      if (count && count > 4) {
+      if (count && count > 3) {
         return {
           cropId: cropId as CropId,
           quantity: Math.floor(count / 2) // Sell half

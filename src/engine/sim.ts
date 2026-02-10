@@ -1,9 +1,9 @@
-import { Rng } from './random';
-import { Agent, Farm, LogEntry, Season, SimConfig, SimState, StepResult, Tile } from './types';
-import { CROP_DEFS } from './crops';
-import { rollForEvent, applyInstantEvent } from './events';
-import { AgentAI } from './agent-ai';
-import { marketEngine } from './market';
+import { Rng } from './random.js';
+import { Agent, Farm, LogEntry, Season, SimConfig, SimState, StepResult, Tile } from './types.js';
+import { CROP_DEFS } from './crops.js';
+import { rollForEvent, applyInstantEvent } from './events.js';
+import { AgentAI } from './agent-ai.js';
+import { marketEngine } from './market.js';
 
 const DEFAULT_CONFIG: SimConfig = {
   farmSize: 10,
@@ -579,14 +579,14 @@ export class SimEngine {
     const stock: Record<string, number> = {};
     const maxStock: Record<string, number> = {};
 
-    // Stock ranges by tier (from spec section 2)
+    // Stock ranges by tier - REDUCED for P2P market activity
     const stockRanges: Record<number, [number, number]> = {
-      1: [15, 25], // Common
-      2: [12, 20], // Common
-      3: [6, 12],  // Uncommon
-      4: [4, 8],   // Uncommon
-      5: [2, 4],   // Rare
-      6: [2, 4]    // Rare
+      1: [8, 12],  // Common (was 15-25)
+      2: [6, 10],  // Common (was 12-20)
+      3: [3, 6],   // Uncommon (was 6-12)
+      4: [2, 4],   // Uncommon (was 4-8)
+      5: [1, 2],   // Rare (was 2-4)
+      6: [1, 2]    // Rare (was 2-4)
     };
 
     for (const [cropId, def] of Object.entries(CROP_DEFS)) {
@@ -598,7 +598,7 @@ export class SimEngine {
 
     return {
       lastRefreshTick: tick,
-      refreshInterval: 200, // 5 minutes (200 ticks × 1.5s = 300s = 5min)
+      refreshInterval: 300, // 7.5 minutes (300 ticks × 1.5s = 450s = 7.5min)
       stock: stock as Record<import('./types').CropId, number>,
       maxStock: maxStock as Record<import('./types').CropId, number>
     };
