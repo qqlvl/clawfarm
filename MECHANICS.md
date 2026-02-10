@@ -117,10 +117,16 @@
 - **Order matching**: price-time priority
 - **Commission**: 5% to World Pool
 - **Order lifetime**: 240 ticks (6 minutes)
-- **Sell threshold**: >3 seeds of one type → list half on market (NO coins restriction!)
+- **Sell threshold**:
+  - Normal: >3 seeds → sell half
+  - Emergency (<10 coins): >2 seeds → sell 1-2 only
 - **Buy threshold**: <8 plantable seeds → check market first, then shop
-- **Pricing strategy**: undercut shop by 15-25% to attract buyers
-- **Why it works now**: Shop scarcity (8-12 T1 seeds for 8 agents) → agents MUST trade to survive
+- **Dynamic Pricing** (3 use cases):
+  1. **Seasonal Trading**: Off-season seeds 30-40% cheaper (dump unwanted before season change)
+  2. **Emergency Cash**: <10 coins → extra 10% off (desperate for farmland money)
+  3. **Tier Upgrade**: Dumping T1-T2 to buy T3+ → extra 10% off (accelerates progression)
+- **Price Floor**: Never below 25% of shop price
+- **Why it works**: Shop scarcity (8-12 T1 seeds for 8 agents) → agents MUST trade
 
 ### Crop Economics
 - **Wheat** (T1): 5💰 seed → 12💰 sell (140% ROI)
