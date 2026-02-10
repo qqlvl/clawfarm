@@ -6,42 +6,62 @@ const agentGifUrls = Object.entries(
   .sort(([a], [b]) => a.localeCompare(b))
   .map(([, url]) => url as string);
 
-let cached: GifSource[] | null = null;
+let cached: GifSource[] = [];
 let loading: Promise<GifSource[]> | null = null;
+let backgroundLoading = false;
 
 export function getAgentGifUrls(): string[] {
   return agentGifUrls;
 }
 
-// Limit GIF loading to improve performance (we only need ~8-20 for typical agent count)
+// Progressive loading: load 15 GIF immediately, rest in background
+const INITIAL_GIFS = 15;  // Enough for 8 agents + buffer
 const MAX_GIFS_TO_LOAD = 100;
 
+async function loadGifBatch(urls: string[]): Promise<GifSource[]> {
+  // Load in parallel for speed
+  const promises = urls.map(async url => {
+    try {
+      const response = await fetch(url);
+      const buffer = await response.arrayBuffer();
+      const src = GifSource.from(buffer, { fps: 10 });
+
+      if (src && src.frames && src.frames.length > 0 && src.frames[0]) {
+        return src;
+      }
+    } catch {
+      // skip failed avatar
+    }
+    return null;
+  });
+
+  const results = await Promise.all(promises);
+  return results.filter((src): src is GifSource => src !== null);
+}
+
 export async function getAgentGifSources(): Promise<GifSource[]> {
-  if (cached) return cached;
+  if (cached.length > 0) return cached;
   if (loading) return loading;
 
   loading = (async () => {
-    const sources: GifSource[] = [];
-    const urlsToLoad = agentGifUrls.slice(0, MAX_GIFS_TO_LOAD);
+    // Load first batch immediately (parallel for speed)
+    const initialUrls = agentGifUrls.slice(0, INITIAL_GIFS);
+    const initialSources = await loadGifBatch(initialUrls);
+    cached = initialSources;
+    console.log(`[GIF Cache] Loaded ${initialSources.length} initial GIF sources (fast start)`);
 
-    for (const url of urlsToLoad) {
-      try {
-        const response = await fetch(url);
-        const buffer = await response.arrayBuffer();
-        const src = GifSource.from(buffer, { fps: 10 });
+    // Continue loading rest in background (don't await)
+    if (!backgroundLoading && agentGifUrls.length > INITIAL_GIFS) {
+      backgroundLoading = true;
+      const remainingUrls = agentGifUrls.slice(INITIAL_GIFS, MAX_GIFS_TO_LOAD);
 
-        // Basic validation: just check frames exist
-        // (texture.valid check is too early - textures load async)
-        if (src && src.frames && src.frames.length > 0 && src.frames[0]) {
-          sources.push(src);
-        }
-      } catch {
-        // skip failed avatar
-      }
+      loadGifBatch(remainingUrls).then(moreSources => {
+        cached = [...cached, ...moreSources];
+        console.log(`[GIF Cache] Background loaded ${moreSources.length} more GIF sources (total: ${cached.length})`);
+      });
     }
-    cached = sources;
-    console.log(`GIF cache: loaded ${sources.length} GIF sources from ${urlsToLoad.length} files`);
-    return sources;
+
+    return cached;
   })();
 
   return loading;
