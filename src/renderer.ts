@@ -1,7 +1,7 @@
 import * as PIXI from 'pixi.js';
 import { GifSource, GifSprite } from 'pixi.js/gif';
 import { Agent, CropState, Farm, Season, SimState, Tile } from './engine/types';
-import { getAgentGifSources, MAX_GIFS_TO_LOAD } from './gif-cache';
+import { loadGifForAgent, getCachedGif } from './gif-cache';
 import { SPRITE_URLS } from './sprite-urls';
 import tilemapPng from './assets/tiles/tilemap.png';
 
@@ -79,7 +79,7 @@ export class FarmRenderer {
   private tileLayer!: PIXI.Container;
   private overlayLayer!: PIXI.Container;
   private agentLayer!: PIXI.Container;
-  private agentGifSources: GifSource[] = [];
+  // Removed agentGifSources - now loading per-agent on demand
   private tileNodes: TileNode[] = [];
   private agentDisplayPos = new Map<string, { x: number; y: number }>();
   private farmStyles = new Map<string, FarmStyle>();
@@ -133,8 +133,7 @@ export class FarmRenderer {
       console.warn('Sprite textures not loaded', e);
     }
 
-    this.agentGifSources = await getAgentGifSources();
-    console.log(`FarmRenderer init complete: ${this.agentGifSources.length} GIF sources loaded`);
+    console.log('FarmRenderer init complete (GIFs loaded on-demand per agent)');
   }
 
   renderFarm(farmData: FarmData, state: SimState, fullRedraw = true): void {
@@ -639,8 +638,10 @@ export class FarmRenderer {
   }
 
   private createAgentActor(agent: Agent): PIXI.Container {
-    const source = this.getAgentGifSource(agent);
-    // Validate GIF source before creating sprite
+    // Try to get cached GIF first (sync)
+    const source = getCachedGif(agent.id);
+
+    // If GIF is cached and valid, use it
     if (source && source.frames && source.frames.length > 0 && source.frames[0]) {
       try {
         const sprite = new GifSprite({
@@ -662,18 +663,25 @@ export class FarmRenderer {
             sprite.scale.set(AGENT_FALLBACK_SCALE);
           }
         } catch {
-          // If bounds check fails, use fallback scale
           sprite.scale.set(AGENT_FALLBACK_SCALE);
         }
 
         sprite.roundPixels = true;
         return sprite;
       } catch (e) {
-        console.warn('GIF sprite creation failed, using fallback:', e);
-        // GIF source has invalid frames — fall through to emoji fallback
+        console.warn(`[GIF] Sprite creation failed for ${agent.id}, using fallback:`, e);
       }
     }
 
+    // If not cached, trigger async load (will update on next render)
+    if (!source) {
+      loadGifForAgent(agent.id).then(() => {
+        // GIF loaded, trigger re-render of this agent on next frame
+        console.log(`[GIF] Loaded for ${agent.id}, will update on next render`);
+      });
+    }
+
+    // Show emoji fallback while loading or if GIF failed
     const fallback = new PIXI.Text({
       text: agent.emoji || '🧑‍🌾',
       style: new PIXI.TextStyle({
@@ -683,15 +691,6 @@ export class FarmRenderer {
     });
     fallback.anchor.set(0.5);
     return fallback;
-  }
-
-  private getAgentGifSource(agent: Agent): GifSource | null {
-    if (this.agentGifSources.length === 0) return null;
-    const hash = this.hashString(agent.id);
-    // Use stable divisor (MAX_GIFS_TO_LOAD) to ensure same agent always gets same GIF
-    // even as more GIFs load in background
-    const stableIndex = hash % MAX_GIFS_TO_LOAD;
-    return this.agentGifSources[stableIndex % this.agentGifSources.length];
   }
 
   // --- Utilities ---
