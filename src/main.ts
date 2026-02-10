@@ -7,7 +7,7 @@ import { FarmGridView } from './views/farm-grid';
 import { FarmDetailView } from './views/farm-detail';
 import { LeaderboardView } from './views/leaderboard';
 import { MarketView } from './views/market';
-import { getAgentGifSources } from './gif-cache';
+// GIF loading now happens on-demand per agent, no preload needed
 import { supabase } from './supabase-client';
 import type { SimState } from './engine/types';
 
@@ -284,7 +284,7 @@ const router = new Router((route) => {
 (async () => {
   // Load GIF sources BEFORE starting app (prevent emoji fallback on first render)
   console.log('[Main] Pre-loading GIF sources...');
-  await getAgentGifSources().catch(e => console.warn('GIF preload failed:', e));
+  // GIF loading now happens on-demand when rendering agents
   console.log('[Main] GIF sources loaded');
 
   await loadInitialState();
