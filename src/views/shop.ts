@@ -43,7 +43,7 @@ export class ShopView implements View {
     // Crop icons per tier
     const cropIcons: Record<string, string> = {
       wheat: '🌾',
-      radish: '🥕',
+      radish: '🔴',
       carrot: '🥕',
       corn: '🌽',
       tomat: '🍅',

@@ -338,27 +338,42 @@ export class AgentAI {
         }
 
         // Buy seeds — prefer highest tier affordable (check shop stock)
+        // If preferred tier is out of stock, try lower tiers (smart fallback)
         if (agent.inventory.coins >= 5 && this.totalSeeds(agent) < 8) {
-          const buyId = this.pickBestAffordableCrop(agent, season);
-          if (buyId) {
-            const def = CROP_DEFS[buyId];
-            const shopStock = state.shop.stock[buyId] || 0;
+          let buyId: CropId | null = null;
+          let wasFallback = false;
 
-            // Check if shop has stock available
+          // Get all crops sorted by tier (high to low), filter affordable
+          const affordableCrops = ALL_CROP_IDS
+            .map(id => ({ id, def: CROP_DEFS[id] }))
+            .filter(c => c.def.seedCost <= agent.inventory.coins)
+            .sort((a, b) => b.def.tier - a.def.tier);
+
+          // Try each crop from high to low tier until we find one in stock
+          for (const { id } of affordableCrops) {
+            const shopStock = state.shop.stock[id] || 0;
             if (shopStock > 0) {
-              const desiredCount = Math.min(3, Math.floor(agent.inventory.coins / def.seedCost));
-              const buyCount = Math.min(desiredCount, shopStock); // Limited by shop stock
-
-              if (buyCount > 0) {
-                agent.inventory.coins -= buyCount * def.seedCost;
-                agent.inventory.seeds[buyId] = (agent.inventory.seeds[buyId] || 0) + buyCount;
-                state.shop.stock[buyId] = shopStock - buyCount; // Deduct from shop stock
-                logs.push(`${agent.name} buys ${buyCount} ${def.name} seeds (${state.shop.stock[buyId]} left)`);
+              buyId = id;
+              // Check if we skipped higher tier (fallback happened)
+              if (affordableCrops[0].id !== id) {
+                wasFallback = true;
               }
-            } else {
-              logs.push(`${agent.name} can't buy ${def.name} — out of stock!`);
+              break;
             }
           }
+
+          if (buyId) {
+            const def = CROP_DEFS[buyId];
+            const shopStock = state.shop.stock[buyId]!;
+            const desiredCount = Math.min(3, Math.floor(agent.inventory.coins / def.seedCost));
+            const buyCount = Math.min(desiredCount, shopStock);
+
+            agent.inventory.coins -= buyCount * def.seedCost;
+            agent.inventory.seeds[buyId] = (agent.inventory.seeds[buyId] || 0) + buyCount;
+            state.shop.stock[buyId] = shopStock - buyCount;
+            logs.push(`${agent.name} buys ${buyCount} ${def.name} seeds (${state.shop.stock[buyId]} left)${wasFallback ? ' ⬇️' : ''}`);
+          }
+          // Don't log anything if no purchase - reduces spam
         }
         energyCost = 2;
         break;
