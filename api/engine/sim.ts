@@ -1,9 +1,9 @@
-import { Rng } from './random.js';
-import { Agent, Farm, LogEntry, Season, SimConfig, SimState, StepResult, Tile } from './types.js';
-import { CROP_DEFS } from './crops.js';
-import { rollForEvent, applyInstantEvent } from './events.js';
-import { AgentAI } from './agent-ai.js';
-import { marketEngine } from './market.js';
+import { Rng } from './random';
+import { Agent, Farm, LogEntry, Season, SimConfig, SimState, StepResult, Tile } from './types';
+import { CROP_DEFS } from './crops';
+import { rollForEvent, applyInstantEvent } from './events';
+import { AgentAI } from './agent-ai';
+import { marketEngine } from './market';
 
 const DEFAULT_CONFIG: SimConfig = {
   farmSize: 10,
@@ -289,13 +289,21 @@ export class SimEngine {
         crop.ticksSinceWatered++;
       }
 
-      // Plant death — wilting when not watered for too long (balanced decay)
+      // Plant death — wilting when not watered for too long (seasonal difficulty)
       const dryThreshold = def.growTicks * 0.3;
       const deathThreshold = def.growTicks * 0.5;
+
+      // Seasonal decay multipliers (winter harder, summer easier)
+      // Safe: defaults to 1.0 if season undefined
+      let decayMultiplier = 1.0;
+      const currentSeason = this.state.season;
+      if (currentSeason === 'winter') decayMultiplier = 1.3; // Winter: 30% faster decay
+      else if (currentSeason === 'summer') decayMultiplier = 0.8; // Summer: 20% slower decay
+
       if (crop.ticksSinceWatered > deathThreshold) {
-        crop.health = Math.max(0, crop.health - 0.8); // Balanced (was -0.5, originally -2)
+        crop.health = Math.max(0, crop.health - (0.8 * decayMultiplier));
       } else if (crop.ticksSinceWatered > dryThreshold) {
-        crop.health = Math.max(0, crop.health - 0.2); // Balanced (was -0.1, originally -0.5)
+        crop.health = Math.max(0, crop.health - (0.2 * decayMultiplier));
       }
 
       // Growth rate
@@ -303,12 +311,17 @@ export class SimEngine {
 
       // Soft season modifier (no death, only speed changes)
       let seasonMultiplier = 1.0; // Neutral by default
-      if (def.preferredSeasons.includes(this.state.season)) {
+      if (currentSeason && def.preferredSeasons.includes(currentSeason)) {
         seasonMultiplier = 1.25; // Ideal season: 25% faster growth
-      } else if (def.badSeasons && def.badSeasons.includes(this.state.season)) {
+      } else if (currentSeason && def.badSeasons && def.badSeasons.includes(currentSeason)) {
         seasonMultiplier = 0.5; // Bad season: 50% slower growth
       }
       // All other seasons are neutral (1.0×)
+
+      // Additional seasonal growth modifiers (winter slower, summer faster)
+      if (currentSeason === 'winter') seasonMultiplier *= 0.9; // Winter: 10% slower
+      else if (currentSeason === 'summer') seasonMultiplier *= 1.1; // Summer: 10% faster
+
       growRate *= seasonMultiplier;
 
       // Moisture modifier
@@ -562,7 +575,7 @@ export class SimEngine {
    * Generate shop stock for the current refresh
    * Stock limits based on crop tier from spec
    */
-  private generateShopStock(tick: number): import('./types.js').ShopState {
+  private generateShopStock(tick: number): import('./types').ShopState {
     const stock: Record<string, number> = {};
     const maxStock: Record<string, number> = {};
 
@@ -586,8 +599,8 @@ export class SimEngine {
     return {
       lastRefreshTick: tick,
       refreshInterval: 200, // 5 minutes (200 ticks × 1.5s = 300s = 5min)
-      stock: stock as Record<import('./types.js').CropId, number>,
-      maxStock: maxStock as Record<import('./types.js').CropId, number>
+      stock: stock as Record<import('./types').CropId, number>,
+      maxStock: maxStock as Record<import('./types').CropId, number>
     };
   }
 

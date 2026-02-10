@@ -1,7 +1,7 @@
-import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile, SimState, GlobalMarket, ItemType, OrderType } from './types.js';
-import { CROP_DEFS, ALL_CROP_IDS, calculateTileCost } from './crops.js';
-import { Rng } from './random.js';
-import { marketEngine } from './market.js';
+import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile, SimState, GlobalMarket, ItemType, OrderType } from './types';
+import { CROP_DEFS, ALL_CROP_IDS, calculateTileCost } from './crops';
+import { Rng } from './random';
+import { marketEngine } from './market';
 
 interface TileChange {
   worldIndex: number;
@@ -85,15 +85,15 @@ export class AgentAI {
         }
 
         // Water crops based on ticksSinceWatered (not moisture!)
-        // Water at 18% threshold = balanced challenge vs success
+        // Water at 20% threshold = moderate challenge with personality
         if (tile.type === 'farmland' && tile.crop && !tile.crop.watered
             && tile.crop.stage !== 'harvestable') {
           const def = CROP_DEFS[tile.crop.cropId];
-          const wateringThreshold = def.growTicks * 0.18; // Balanced (was 15%, originally 25%)
+          const wateringThreshold = def.growTicks * 0.20; // Moderate (was 18%)
           const needsWater = tile.crop.ticksSinceWatered > wateringThreshold;
 
           if (needsWater) {
-            let waterScore = 120 - dist * 0.5; // Super priority - higher than harvest!
+            let waterScore = 105 - dist * 0.5; // High priority (sometimes conflicts with harvest)
             // Boost priority for wilting crops
             if (tile.crop.health < 50) waterScore += 30; // Critical: 150
             else if (tile.crop.health < 80) waterScore += 10; // Warning: 130
@@ -101,11 +101,14 @@ export class AgentAI {
           }
         }
 
-        // Plant on empty farmland
+        // Plant on empty farmland (limit concurrent crops to 3)
         if (tile.type === 'farmland' && !tile.crop) {
-          const cropId = this.pickCrop(agent, season);
-          if (cropId) {
-            candidates.push({ action: 'planting', score: 50 - dist * 0.5, tx: wx, ty: wy, ticks: 2, cropId });
+          const activeCrops = tiles.filter(t => t.type === 'farmland' && t.crop).length;
+          if (activeCrops < 3) {
+            const cropId = this.pickCrop(agent, season);
+            if (cropId) {
+              candidates.push({ action: 'planting', score: 50 - dist * 0.5, tx: wx, ty: wy, ticks: 2, cropId });
+            }
           }
         }
 
@@ -195,7 +198,16 @@ export class AgentAI {
     candidates.sort((a, b) => b.score - a.score);
 
     if (candidates.length === 0) {
-      // Random walk
+      // DEBUG: Log why agent is idle
+      const debugInfo = {
+        seeds: this.totalSeeds(agent),
+        coins: agent.inventory.coins,
+        crops: Object.values(agent.inventory.crops).reduce((s, n) => s + (n || 0), 0),
+        energy: agent.energy,
+        farmland: tiles.filter(t => t.type === 'farmland').length,
+        activeCrops: tiles.filter(t => t.type === 'farmland' && t.crop).length
+      };
+      console.warn(`[AI] ${agent.name} IDLE - no candidates`, debugInfo);
       return { goal: null, tileChanges: [], logs: [], energyCost: 0 };
     }
 
@@ -286,6 +298,12 @@ export class AgentAI {
 
       case 'watering':
         if (tile && tile.crop) {
+          // AI imperfection: 3% chance to get distracted and miss watering
+          if (rng.next() < 0.03) {
+            logs.push(`${agent.name} got distracted and forgot to water! 💭`);
+            energyCost = 1; // Still costs some energy (walked to tile)
+            break;
+          }
           tile.moisture = Math.min(1.0, tile.moisture + 0.4);
           tile.crop.watered = true;
           tile.crop.ticksSinceWatered = 0;
@@ -297,21 +315,18 @@ export class AgentAI {
 
       case 'harvesting':
         if (tile && tile.crop?.stage === 'harvestable') {
-          const def = CROP_DEFS[tile.crop.cropId];
-
-          // Base yield
-          let qty = rng.nextInt(def.yield[0], def.yield[1]);
-
-          // Season yield modifier
-          let yieldModifier = 0; // Neutral by default
-          if (def.preferredSeasons.includes(season)) {
-            yieldModifier = 1; // Ideal season: +1 yield
-          } else if (def.badSeasons && def.badSeasons.includes(season)) {
-            yieldModifier = -1; // Bad season: -1 yield
+          // AI imperfection: 3% chance to accidentally ruin harvest
+          if (rng.next() < 0.03) {
+            logs.push(`${agent.name} dropped the harvest! 🤦`);
+            delete tile.crop;
+            changes.push({ worldIndex: worldIdx, tile });
+            energyCost = 5;
+            agent.stats.cropsLost++;
+            agent.stats.consecutiveHarvests = 0;
+            break;
           }
-
-          qty = Math.max(1, qty + yieldModifier); // Minimum 1 yield
-
+          const def = CROP_DEFS[tile.crop.cropId];
+          const qty = rng.nextInt(def.yield[0], def.yield[1]);
           agent.inventory.crops[tile.crop.cropId] = (agent.inventory.crops[tile.crop.cropId] || 0) + qty;
           const cropName = def.name;
           delete tile.crop;
@@ -451,9 +466,24 @@ export class AgentAI {
     });
     if (affordable.length === 0) return null;
 
-    // Sort by tier descending — buy highest tier possible
-    affordable.sort((a, b) => CROP_DEFS[b].tier - CROP_DEFS[a].tier);
-    return affordable[0];
+    // Randomized strategy: 60% high tier, 40% low tier (for safer farming)
+    const wantsHighTier = Math.random() < 0.6;
+
+    if (wantsHighTier) {
+      // Buy highest tier possible
+      affordable.sort((a, b) => CROP_DEFS[b].tier - CROP_DEFS[a].tier);
+      return affordable[0];
+    } else {
+      // Buy low tier (tier 1-2) for safer profit
+      const lowTier = affordable.filter(id => CROP_DEFS[id].tier <= 2);
+      if (lowTier.length > 0) {
+        lowTier.sort((a, b) => CROP_DEFS[b].tier - CROP_DEFS[a].tier);
+        return lowTier[0];
+      }
+      // Fallback to highest if no low tier available
+      affordable.sort((a, b) => CROP_DEFS[b].tier - CROP_DEFS[a].tier);
+      return affordable[0];
+    }
   }
 
   private totalSeeds(agent: Agent): number {
