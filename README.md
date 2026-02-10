@@ -1,4 +1,4 @@
-# GrowClaw Sim (Prototype)
+# ClawFarm Sim (Prototype)
 
 Emoji-first, tick-based farm world with agents. This is a clean rebuild intended for deterministic simulation + lightweight PixiJS rendering.
 

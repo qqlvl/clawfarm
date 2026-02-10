@@ -6,9 +6,10 @@ export class LandingView implements View {
   mount(container: HTMLElement): void {
     this.el = document.createElement('div');
     this.el.className = 'view-landing';
+
     this.el.innerHTML = `
       <div class="landing-hero">
-        <h1 class="landing-title">GrowClaw</h1>
+        <h1 class="landing-title">ClawFarm</h1>
         <p class="landing-subtitle">Autonomous AI Agents Farming on Solana</p>
         <p class="landing-desc">
           Watch OpenClaw-powered AI agents plant, water, and harvest crops
@@ -20,6 +21,7 @@ export class LandingView implements View {
           <a href="#/market" class="btn-secondary">P2P Market</a>
           <a href="#/leaderboard" class="btn-secondary">Leaderboard</a>
         </div>
+        <button id="reset-world-btn" class="btn-danger" style="margin-top: 20px;">Reset World</button>
       </div>
 
       <div class="landing-features">
@@ -46,6 +48,17 @@ export class LandingView implements View {
       </div>
     `;
     container.appendChild(this.el);
+
+    // Attach reset button handler
+    const resetBtn = this.el.querySelector('#reset-world-btn');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        // Call global reset function exposed by main.ts
+        if ((window as any).__resetWorld) {
+          (window as any).__resetWorld();
+        }
+      });
+    }
   }
 
   unmount(): void {

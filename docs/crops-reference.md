@@ -66,10 +66,9 @@ For each farmland tile with crop (except already `harvestable`):
   - `fairy_blessing`: growth `x1.5`
   - `drought`: extra moisture drain `-0.008`
 - Stage thresholds by `growthProgress`:
-  - `< 0.15` -> `seed`
-  - `>= 0.15` -> `sprout`
-  - `>= 0.4` -> `growing`
-  - `>= 0.7` -> `mature`
+  - `< 0.2` -> `seed`
+  - `>= 0.2` -> `sprout`
+  - `>= 0.5` -> `growing`
   - `>= 1.0` -> `harvestable`
 - At end of tick, `watered` is reset to `false`
 - If health reaches `0`, crop dies and is removed
@@ -93,54 +92,57 @@ Harvest works only for `harvestable` crops.
 | Crop ID | Name | Tier | growTicks | Approx real time (ideal) | Seed cost | Sell price | Yield | Preferred seasons | Forbidden seasons | waterNeed |
 |---|---|---:|---:|---:|---:|---:|---|---|---|---:|
 | `wheat` | Wheat | 1 | 60 | 90s | 5 | 12 | 3-6 | winter | none | 0.2 |
-| `carrot` | Carrot | 2 | 120 | 180s | 20 | 55 | 2-4 | spring | winter | 0.3 |
-| `pumpkin` | Pumpkin | 3 | 200 | 300s | 80 | 250 | 1-3 | autumn | spring | 0.4 |
-| `crystal_flower` | Crystal Flower | 4 | 400 | 600s | 300 | 1000 | 1-2 | autumn | none | 0.5 |
-| `golden_tree` | Golden Tree | 5 | 800 | 1200s | 1500 | 6000 | 1-1 | none | none | 0.3 |
+| `radish` | Radish | 2 | 90 | 135s | 12 | 30 | 2-5 | spring | none | 0.25 |
+| `carrot` | Carrot | 3 | 120 | 180s | 20 | 55 | 2-4 | spring, summer | winter | 0.3 |
+| `corn` | Corn | 4 | 160 | 240s | 40 | 120 | 2-3 | summer | none | 0.35 |
+| `tomat` | Tomato | 5 | 180 | 270s | 60 | 180 | 1-3 | summer, autumn | winter | 0.4 |
+| `pumpkin` | Pumpkin | 6 | 200 | 300s | 80 | 250 | 1-3 | autumn | spring | 0.4 |
 
 ## Crop Asset Mapping
 
 Seed stage does not use a crop texture. It is rendered as a small procedural brown dot.
 
+All crops now use a 3-stage growth system (sprout → growing → harvestable).
+
 ### Wheat
 
 - `sprout` -> `src/assets/crops/wheat_sprout.png`
 - `growing` -> `src/assets/crops/wheat_growing.png`
-- `mature` -> `src/assets/crops/wheat_mature.png`
 - `harvestable` -> `src/assets/crops/wheat_harvest.png`
+
+### Radish
+
+- `sprout` -> `src/assets/crops/radish_sprout.png`
+- `growing` -> `src/assets/crops/radish_growing.png`
+- `harvestable` -> `src/assets/crops/radish_harvest.png`
 
 ### Carrot
 
 - `sprout` -> `src/assets/crops/carrot_sprout.png`
 - `growing` -> `src/assets/crops/carrot_growing.png`
-- `mature` -> `src/assets/crops/carrot_mature.png`
 - `harvestable` -> `src/assets/crops/carrot_harvest.png`
+
+### Corn
+
+- `sprout` -> `src/assets/crops/corn_sprout.png`
+- `growing` -> `src/assets/crops/corn_growing.png`
+- `harvestable` -> `src/assets/crops/corn_harvest.png`
+
+### Tomat
+
+- `sprout` -> `src/assets/crops/tomat_sprout.png`
+- `growing` -> `src/assets/crops/tomat_growing.png`
+- `harvestable` -> `src/assets/crops/tomat_harvest.png`
 
 ### Pumpkin
 
 - `sprout` -> `src/assets/crops/pumpkin_sprout.png`
 - `growing` -> `src/assets/crops/pumpkin_growing.png`
-- `mature` -> `src/assets/crops/pumpkin_mature.png`
 - `harvestable` -> `src/assets/crops/pumpkin_harvest.png`
 
-### Crystal Flower
+### Wilted Plants (health-based)
 
-- `sprout` -> `src/assets/crops/crystal_flower_sprout.png`
-- `growing` -> `src/assets/crops/crystal_flower_growing.png`
-- `mature` -> `src/assets/crops/crystal_flower_mature.png`
-- `harvestable` -> `src/assets/crops/crystal_flower_harvest.png`
-
-### Golden Tree
-
-- `sprout` -> `src/assets/crops/golden_tree_sprout.png`
-- `growing` -> `src/assets/crops/golden_tree_growing.png`
-- `mature` -> `src/assets/crops/golden_tree_mature.png`
-- `harvestable` -> `src/assets/crops/golden_tree_harvest.png`
-
-### Wilted (health-based override)
-
-- health `< 50` -> `src/assets/crops/wilted_small.png`
-- health `< 25` -> `src/assets/crops/wilted_large.png`
+When crop health drops below 50, the plant continues to use its normal growth stage sprite but will be rendered with visual modifications (brownish tint, reduced size) to indicate wilting. Currently no separate wilted sprite assets exist - wilting is shown through the normal crop sprites.
 
 ## Where This Data Comes From
 

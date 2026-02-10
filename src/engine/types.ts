@@ -1,9 +1,9 @@
 export type TileType = 'grass' | 'water' | 'tree' | 'farmland' | 'house';
 
 export type CropId =
-  | 'wheat' | 'carrot' | 'pumpkin' | 'crystal_flower' | 'golden_tree';
+  | 'wheat' | 'carrot' | 'radish' | 'corn' | 'tomat' | 'pumpkin';
 
-export type GrowthStage = 'seed' | 'sprout' | 'growing' | 'mature' | 'harvestable';
+export type GrowthStage = 'seed' | 'sprout' | 'growing' | 'harvestable';
 
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 

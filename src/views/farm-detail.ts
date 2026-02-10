@@ -187,7 +187,7 @@ export class FarmDetailView implements View {
     this.statsEl.innerHTML = `
       <div class="stat-row">
         <span class="stat-label">Season</span>
-        <span class="stat-value season-${state.season}">${seasonCap}</span>
+        <span class="stat-value season-badge season-${state.season}">${seasonCap}</span>
       </div>
       <div class="stat-row">
         <span class="stat-label">Tick</span>

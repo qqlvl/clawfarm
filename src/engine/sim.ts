@@ -69,6 +69,17 @@ export class SimEngine {
     this.state = this.buildInitialState();
   }
 
+  loadState(state: SimState): void {
+    this.state = state;
+    // Update agentCounter to avoid ID collisions
+    const maxAgentId = this.state.agents.reduce((max, agent) => {
+      const match = agent.id.match(/agent-(\d+)/);
+      return match ? Math.max(max, parseInt(match[1])) : max;
+    }, 0);
+    this.agentCounter = maxAgentId + 1;
+    console.log(`[SimEngine] Loaded state at tick ${state.tick}, next agent ID: ${this.agentCounter}`);
+  }
+
   addAgent(name?: string): Agent {
     const farm = this.pickFarmForNewAgent();
     const agent: Agent = {
@@ -310,9 +321,8 @@ export class SimEngine {
       crop.growthProgress = Math.min(1.0, crop.growthProgress + growRate);
 
       if (crop.growthProgress >= 1.0) crop.stage = 'harvestable';
-      else if (crop.growthProgress >= 0.7) crop.stage = 'mature';
-      else if (crop.growthProgress >= 0.4) crop.stage = 'growing';
-      else if (crop.growthProgress >= 0.15) crop.stage = 'sprout';
+      else if (crop.growthProgress >= 0.5) crop.stage = 'growing';
+      else if (crop.growthProgress >= 0.2) crop.stage = 'sprout';
       else crop.stage = 'seed';
 
       if (crop.stage !== oldStage) {

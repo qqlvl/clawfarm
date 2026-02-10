@@ -17,10 +17,11 @@ const POST_COLOR = '#6b4e2a';
 
 const CROP_DOT: Record<CropId, string> = {
   wheat: '#f1c40f',
+  radish: '#e74c3c',
   carrot: '#e67e22',
-  pumpkin: '#e67e22',
-  crystal_flower: '#9b59b6',
-  golden_tree: '#f5d742'
+  corn: '#f5d742',
+  tomat: '#c0392b',
+  pumpkin: '#e67e22'
 };
 
 const SEASON_OVERLAY: Record<Season, string> = {

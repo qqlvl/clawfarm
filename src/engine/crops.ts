@@ -7,29 +7,35 @@ export const CROP_DEFS: Record<CropId, CropDef> = {
     preferredSeasons: ['winter'], forbiddenSeasons: [],
     waterNeed: 0.2, yield: [3, 6]
   },
+  radish: {
+    id: 'radish', name: 'Radish', tier: 2,
+    growTicks: 90, sellPrice: 30, seedCost: 12,
+    preferredSeasons: ['spring'], forbiddenSeasons: [],
+    waterNeed: 0.25, yield: [2, 5]
+  },
   carrot: {
-    id: 'carrot', name: 'Carrot', tier: 2,
+    id: 'carrot', name: 'Carrot', tier: 3,
     growTicks: 120, sellPrice: 55, seedCost: 20,
-    preferredSeasons: ['spring'], forbiddenSeasons: ['winter'],
+    preferredSeasons: ['spring', 'summer'], forbiddenSeasons: ['winter'],
     waterNeed: 0.3, yield: [2, 4]
   },
+  corn: {
+    id: 'corn', name: 'Corn', tier: 4,
+    growTicks: 160, sellPrice: 120, seedCost: 40,
+    preferredSeasons: ['summer'], forbiddenSeasons: [],
+    waterNeed: 0.35, yield: [2, 3]
+  },
+  tomat: {
+    id: 'tomat', name: 'Tomato', tier: 5,
+    growTicks: 180, sellPrice: 180, seedCost: 60,
+    preferredSeasons: ['summer', 'autumn'], forbiddenSeasons: ['winter'],
+    waterNeed: 0.4, yield: [1, 3]
+  },
   pumpkin: {
-    id: 'pumpkin', name: 'Pumpkin', tier: 3,
+    id: 'pumpkin', name: 'Pumpkin', tier: 6,
     growTicks: 200, sellPrice: 250, seedCost: 80,
     preferredSeasons: ['autumn'], forbiddenSeasons: ['spring'],
     waterNeed: 0.4, yield: [1, 3]
-  },
-  crystal_flower: {
-    id: 'crystal_flower', name: 'Crystal Flower', tier: 4,
-    growTicks: 400, sellPrice: 1000, seedCost: 300,
-    preferredSeasons: ['autumn'], forbiddenSeasons: [],
-    waterNeed: 0.5, yield: [1, 2]
-  },
-  golden_tree: {
-    id: 'golden_tree', name: 'Golden Tree', tier: 5,
-    growTicks: 800, sellPrice: 6000, seedCost: 1500,
-    preferredSeasons: [], forbiddenSeasons: [],
-    waterNeed: 0.3, yield: [1, 1]
   }
 };
 

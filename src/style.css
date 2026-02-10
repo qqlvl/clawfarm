@@ -379,6 +379,7 @@ label[for] {
 
 .stat-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   padding: 8px 0;
   border-bottom: 1px solid var(--border-subtle);
@@ -428,13 +429,18 @@ label[for] {
 /* ─── Season Badges ─── */
 
 .season-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
   padding: 3px 10px;
   border-radius: 20px;
   font-size: 12px;
+  line-height: 1;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
 .season-spring { color: #6ab04c; background: rgba(106, 176, 76, 0.15); }
@@ -1071,6 +1077,26 @@ label[for] {
 .btn-secondary:hover {
   background: var(--accent);
   color: var(--bg-dark);
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  display: inline-block;
+  padding: 10px 24px;
+  background: transparent;
+  color: #e74c3c;
+  border: 2px solid #e74c3c;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background: #e74c3c;
+  color: #fff;
   transform: translateY(-2px);
 }
 

@@ -386,12 +386,26 @@ export class FarmRenderer {
           const pad = this.getCropPadding(tile.crop.stage);
           const px = lx * TILE_SIZE;
           const py = ly * TILE_SIZE;
+          const verticalOffset = 3; // Shift crops up slightly to look like growing from ground
           crop.texture = cropTex;
           crop.x = px + pad;
-          crop.y = py + pad;
+          crop.y = py + pad - verticalOffset;
           crop.width = TILE_SIZE - pad * 2;
           crop.height = TILE_SIZE - pad * 2;
-          crop.tint = 0xFFFFFF;
+
+          // Wilting visuals based on health
+          if (tile.crop.health < 50) {
+            // Brownish tint for wilted plants
+            const brownTint = tile.crop.health < 25 ? 0x6b4e2a : 0x8b6b42;
+            crop.tint = brownTint;
+            // Shrink height to show drooping
+            const shrinkFactor = tile.crop.health < 25 ? 0.6 : 0.8;
+            crop.height = (TILE_SIZE - pad * 2) * shrinkFactor;
+            crop.y = py + pad - verticalOffset + (TILE_SIZE - pad * 2) * (1 - shrinkFactor);
+          } else {
+            crop.tint = 0xFFFFFF;
+          }
+
           crop.visible = true;
           // Harvestable glow
           if (tile.crop.stage === 'harvestable' && tile.crop.health >= 50) {
@@ -533,8 +547,6 @@ export class FarmRenderer {
   // --- Sprite helpers ---
 
   private getCropTexture(cropState: CropState): PIXI.Texture | null {
-    if (cropState.health < 25) return this.spriteTextures.get('wilted_large') || null;
-    if (cropState.health < 50) return this.spriteTextures.get('wilted_small') || null;
     if (cropState.stage === 'seed') return null; // procedural fallback
     const key = `${cropState.cropId}_${cropState.stage}`;
     return this.spriteTextures.get(key) || null;
@@ -542,11 +554,10 @@ export class FarmRenderer {
 
   private getCropPadding(stage: string): number {
     switch (stage) {
-      case 'sprout': return 10;
-      case 'growing': return 7;
-      case 'mature': return 5;
-      case 'harvestable': return 4;
-      default: return 6;
+      case 'sprout': return 4;
+      case 'growing': return 2;
+      case 'harvestable': return 1;
+      default: return 3;
     }
   }
 

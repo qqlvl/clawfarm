@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npm run dev:*)",
+      "Bash(node:*)",
+      "Bash(npx vite build)",
+      "Bash(npx vite:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Read(//c/Users/Vitek best PC/Desktop/assets/aalll/**)",
+      "Read(//c/Users/Vitek best PC/Desktop/**)",
+      "Bash(file:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Vitek best PC\\Desktop\\assets\\aalll\\Tilemap"
+    ]
+  }
+}
