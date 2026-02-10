@@ -176,9 +176,10 @@ export class AgentAI {
       }
     }
 
-    // Sell excess seeds on market (if have >3 of one type)
+    // Sell excess seeds on market (only if already farming - prevents startup loop)
+    const concurrentCrops = tiles.filter(t => t.type === 'farmland' && t.crop).length;
     const excessSeeds = this.findExcessSeeds(agent);
-    if (excessSeeds) {
+    if (excessSeeds && concurrentCrops > 0) {
       const marketSell = this.createMarketSellOrder(excessSeeds, 'seed');
       candidates.push({
         action: 'market_sell',
