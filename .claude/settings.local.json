@@ -10,7 +10,8 @@
       "Bash(git commit:*)",
       "Read(//c/Users/Vitek best PC/Desktop/assets/aalll/**)",
       "Read(//c/Users/Vitek best PC/Desktop/**)",
-      "Bash(file:*)"
+      "Bash(file:*)",
+      "Bash(git rm:*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Vitek best PC\\Desktop\\assets\\aalll\\Tilemap"

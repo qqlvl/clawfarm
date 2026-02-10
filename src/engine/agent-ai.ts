@@ -162,12 +162,17 @@ export class AgentAI {
           marketOrder: bestMarketBuy
         });
       } else {
-        // Fallback to shop - but only if shop has stock
-        const shopHasStock = Object.values(state.shop.stock).some(qty => qty > 0);
-        if (shopHasStock) {
+        // Fallback to shop - but only if shop has BUYABLE stock (affordable + not forbidden)
+        const shopHasBuyableStock = ALL_CROP_IDS.some(id => {
+          const def = CROP_DEFS[id];
+          if (def.forbiddenSeasons.includes(season)) return false;
+          if (def.seedCost > agent.inventory.coins) return false;
+          return (state.shop.stock[id] || 0) > 0;
+        });
+        if (shopHasBuyableStock) {
           candidates.push({ action: 'selling', score: 38, tx: agent.x, ty: agent.y, ticks: 1 });
         }
-        // If shop is empty, agent will wait or do other tasks
+        // If no buyable stock, agent will do other tasks instead
       }
     }
 
@@ -340,7 +345,7 @@ export class AgentAI {
 
         // Buy seeds — prefer highest tier affordable (check shop stock)
         // If preferred tier is out of stock, try lower tiers (smart fallback)
-        if (agent.inventory.coins >= 5 && this.totalSeeds(agent) < 8) {
+        if (agent.inventory.coins >= 5 && this.totalPlantableSeeds(agent, season) < 8) {
           let buyId: CropId | null = null;
           let wasFallback = false;
 
