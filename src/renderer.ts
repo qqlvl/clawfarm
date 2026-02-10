@@ -623,12 +623,8 @@ export class FarmRenderer {
       sprite.x = dp.x;
       sprite.y = dp.y;
 
-      // Hide agent when inside house (2x2 area at 1,1)
-      // Use DISPLAY position (lerped) instead of real position to prevent flicker
-      const displayLx = Math.round(dp.x / TILE_SIZE);
-      const displayLy = Math.round(dp.y / TILE_SIZE);
-      const isInHouse = (displayLx === 1 || displayLx === 2) && (displayLy === 1 || displayLy === 2);
-      sprite.visible = !isInHouse;
+      // Always show agent (even at house) — hiding caused "disappear" bug during rest
+      sprite.visible = true;
     }
 
     for (const [id, sprite] of existing.entries()) {

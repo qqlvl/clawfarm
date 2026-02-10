@@ -126,7 +126,7 @@ export class SimEngine {
     // 1. Season advancement
     this.tickSeason();
 
-    // 2. Shop refresh (every 300 ticks)
+    // 2. Shop refresh (every 200 ticks = 5 min)
     const ticksSinceRefresh = this.state.tick - this.state.shop.lastRefreshTick;
     if (ticksSinceRefresh >= this.state.shop.refreshInterval) {
       this.state.shop = this.generateShopStock(this.state.tick);
@@ -579,14 +579,14 @@ export class SimEngine {
     const stock: Record<string, number> = {};
     const maxStock: Record<string, number> = {};
 
-    // Stock ranges by tier - REDUCED for P2P market activity
+    // Stock ranges by tier - balanced for 8 agents + P2P market
     const stockRanges: Record<number, [number, number]> = {
-      1: [8, 12],  // Common (was 15-25)
-      2: [6, 10],  // Common (was 12-20)
-      3: [3, 6],   // Uncommon (was 6-12)
-      4: [2, 4],   // Uncommon (was 4-8)
-      5: [1, 2],   // Rare (was 2-4)
-      6: [1, 2]    // Rare (was 2-4)
+      1: [12, 18], // ~2 per agent
+      2: [10, 14], // ~1.5 per agent
+      3: [5, 8],   // Competition starts here
+      4: [3, 5],   // Scarce
+      5: [2, 3],   // Rare
+      6: [1, 2]    // Very rare
     };
 
     for (const [cropId, def] of Object.entries(CROP_DEFS)) {
@@ -598,7 +598,7 @@ export class SimEngine {
 
     return {
       lastRefreshTick: tick,
-      refreshInterval: 300, // 7.5 minutes (300 ticks × 1.5s = 450s = 7.5min)
+      refreshInterval: 200, // 5 minutes (200 ticks × 1.5s = 300s = 5min)
       stock: stock as Record<import('./types').CropId, number>,
       maxStock: maxStock as Record<import('./types').CropId, number>
     };
