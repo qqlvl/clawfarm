@@ -62,10 +62,6 @@ export class MarketView implements View {
       <div class="market-container">
         <div class="market-header">
           <h1>💱 P2P Market - Seeds Only</h1>
-          <div class="world-pool">
-            <span class="pool-label">World Pool (5% commission):</span>
-            <span class="pool-amount">${state.market.worldPoolCoins} 💰</span>
-          </div>
         </div>
 
         <div class="market-tabs">
@@ -268,10 +264,6 @@ export class MarketView implements View {
               <span class="trade-label">Price:</span>
               <span class="trade-value">${trade.pricePerUnit}💰 each (${trade.totalPrice}💰 total)</span>
             </div>
-            <div class="trade-detail commission">
-              <span class="trade-label">Commission:</span>
-              <span class="trade-value">${trade.commission}💰 (3%)</span>
-            </div>
           </div>
         </div>
       `;
@@ -293,27 +285,19 @@ export class MarketView implements View {
     const sellOrders = market.orders.filter((o: MarketOrder) => o.type === 'sell').length;
     const totalTrades = market.tradeHistory.length;
     const totalVolume = market.tradeHistory.reduce((sum: number, t: MarketTrade) => sum + t.totalPrice, 0);
-    const totalCommission = market.worldPoolCoins;
 
-    // Average prices by crop
-    const avgPricesByCrop = new Map<CropId, { seed: number | null; crop: number | null }>();
+    // Average seed prices by crop
+    const avgPricesByCrop = new Map<CropId, { seed: number | null }>();
     for (const cropId of ALL_CROP_IDS) {
       const seedTrades = market.tradeHistory.filter((t: MarketTrade) =>
         t.cropId === cropId && t.itemType === 'seed'
-      ).slice(0, 5);
-      const cropTrades = market.tradeHistory.filter((t: MarketTrade) =>
-        t.cropId === cropId && t.itemType === 'crop'
       ).slice(0, 5);
 
       const avgSeedPrice = seedTrades.length > 0
         ? Math.round(seedTrades.reduce((sum: number, t: MarketTrade) => sum + t.pricePerUnit, 0) / seedTrades.length)
         : null;
 
-      const avgCropPrice = cropTrades.length > 0
-        ? Math.round(cropTrades.reduce((sum: number, t: MarketTrade) => sum + t.pricePerUnit, 0) / cropTrades.length)
-        : null;
-
-      avgPricesByCrop.set(cropId, { seed: avgSeedPrice, crop: avgCropPrice });
+      avgPricesByCrop.set(cropId, { seed: avgSeedPrice });
     }
 
     const priceTableHTML = ALL_CROP_IDS.map(cropId => {
@@ -324,21 +308,15 @@ export class MarketView implements View {
       const seedDiscount = prices.seed !== null
         ? `${Math.round((1 - prices.seed / def.seedCost) * 100)}%`
         : '-';
-
-      const cropMarketPrice = prices.crop !== null ? `${prices.crop}💰` : '-';
-      const cropDiscount = prices.crop !== null
-        ? `${Math.round((1 - prices.crop / def.sellPrice) * 100)}%`
-        : '-';
+      const discountClass = prices.seed !== null ? 'has-discount' : '';
 
       return `
         <tr>
-          <td class="crop-name">${def.name}</td>
+          <td class="crop-name">${def.name} <span class="tier-badge">T${def.tier}</span></td>
           <td>${def.seedCost}💰</td>
           <td class="market-price">${seedMarketPrice}</td>
-          <td class="discount">${seedDiscount}</td>
+          <td class="discount ${discountClass}">${seedDiscount}</td>
           <td>${def.sellPrice}💰</td>
-          <td class="market-price">${cropMarketPrice}</td>
-          <td class="discount">${cropDiscount}</td>
         </tr>
       `;
     }).join('');
@@ -361,29 +339,18 @@ export class MarketView implements View {
             <div class="market-stat-label">Trade Volume</div>
             <div class="stat-detail">Total coins traded</div>
           </div>
-          <div class="stat-card highlight">
-            <div class="market-stat-value">${totalCommission}💰</div>
-            <div class="market-stat-label">World Pool</div>
-            <div class="stat-detail">3% commission collected</div>
-          </div>
         </div>
 
         <div class="price-comparison">
-          <h3>📊 Price Comparison: Shop vs Market</h3>
+          <h3>📊 Seed Prices: Shop vs Market</h3>
           <table class="price-table">
             <thead>
               <tr>
-                <th rowspan="2">Crop</th>
-                <th colspan="3">Seeds</th>
-                <th colspan="3">Crops</th>
-              </tr>
-              <tr>
-                <th>Shop</th>
+                <th>Crop</th>
+                <th>Shop Price</th>
                 <th>Market Avg</th>
-                <th>Discount</th>
-                <th>Shop</th>
-                <th>Market Avg</th>
-                <th>Discount</th>
+                <th>Savings</th>
+                <th>Sell Price</th>
               </tr>
             </thead>
             <tbody>
