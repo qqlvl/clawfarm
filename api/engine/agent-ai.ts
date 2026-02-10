@@ -85,11 +85,11 @@ export class AgentAI {
         }
 
         // Water crops based on ticksSinceWatered (not moisture!)
-        // Water at 15% threshold = larger margin before death threshold
+        // Water at 18% threshold = balanced challenge vs success
         if (tile.type === 'farmland' && tile.crop && !tile.crop.watered
             && tile.crop.stage !== 'harvestable') {
           const def = CROP_DEFS[tile.crop.cropId];
-          const wateringThreshold = def.growTicks * 0.15; // Earlier watering (was 20%)
+          const wateringThreshold = def.growTicks * 0.18; // Balanced (was 15%, originally 25%)
           const needsWater = tile.crop.ticksSinceWatered > wateringThreshold;
 
           if (needsWater) {
