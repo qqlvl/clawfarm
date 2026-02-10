@@ -204,7 +204,7 @@ label[for] {
 
 .farm-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
 
@@ -367,63 +367,278 @@ label[for] {
 .detail-info {
   flex: 1;
   min-width: 0;
-  background: var(--bg-card);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  border: 1px solid var(--border-subtle);
-}
-
-.detail-stats {
-  margin-bottom: 20px;
-}
-
-.stat-row {
+  height: 516px; /* 512px canvas + 4px border */
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-subtle);
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ─── Agent Card ─── */
+
+.detail-agent-card {
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-surface) 100%);
+  border: 1px solid var(--border-warm);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+}
+
+.agent-card-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.agent-card-action {
+  font-size: 13px;
+  color: var(--accent-green);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.agent-card-row {
+  display: flex;
+  gap: 16px;
   font-size: 14px;
 }
 
-.stat-row:last-child {
+.agent-card-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-card-stat .stat-icon {
+  font-size: 16px;
+}
+
+.agent-card-stat .stat-num {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.agent-card-stat .stat-num.coins {
+  color: var(--accent-gold);
+}
+
+/* ─── Farm Info Card ─── */
+
+.detail-farm-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+}
+
+.farm-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.farm-card-row:last-child {
   border-bottom: none;
 }
 
-.stat-label {
+.farm-card-label {
   color: var(--text-muted);
+  font-size: 12px;
 }
 
-.stat-value {
+.farm-card-value {
   color: var(--text-primary);
   font-weight: 600;
 }
 
-.detail-log-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-secondary);
+/* ─── Inventory Grid ─── */
+
+.detail-inventory {
+  flex: 1;
+  background: #2a2318;
+  border: 2px solid rgba(232, 193, 112, 0.2);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.detail-inventory-section {
   margin-bottom: 10px;
 }
 
-.detail-log {
-  max-height: 280px;
-  overflow-y: auto;
-  font-size: 12px;
-  line-height: 1.5;
+.detail-inventory-section:last-child {
+  margin-bottom: 0;
 }
 
-.log-entry {
-  padding: 4px 0;
+.inv-section-label {
+  font-size: 11px;
+  font-weight: 700;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
 }
 
-.log-entry strong {
-  color: var(--accent-green);
+.inv-grid {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.log-tick {
+.inv-slot {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 2px solid rgba(255, 220, 180, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.inv-slot.filled {
+  border-color: rgba(232, 193, 112, 0.35);
+  background: rgba(232, 193, 112, 0.06);
+}
+
+.inv-slot.filled:hover {
+  border-color: rgba(232, 193, 112, 0.6);
+  background: rgba(232, 193, 112, 0.12);
+}
+
+.inv-slot-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.inv-slot-icon img,
+.inv-radish-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.inv-slot-qty {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: var(--accent-gold);
+  color: var(--bg-deep);
+  font-size: 10px;
+  font-weight: 800;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── Activity Log Section (full-width below body) ─── */
+
+.detail-log-section {
+  margin-top: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.detail-log-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.detail-log-wrap {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.detail-log-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.detail-log-table thead th {
+  text-align: left;
+  padding: 8px 16px;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.detail-log-table tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.15s;
+}
+
+.detail-log-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.detail-log-table tbody tr:hover {
+  background: rgba(232, 193, 112, 0.04);
+}
+
+.detail-log-table td {
+  padding: 8px 16px;
+  vertical-align: middle;
+}
+
+.log-col-time {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  width: 80px;
+}
+
+.log-col-type {
+  width: 36px;
+  text-align: center;
+  font-size: 16px;
+}
+
+.log-col-msg {
   color: var(--text-secondary);
+}
+
+.log-col-msg.log-action { color: var(--accent-green); }
+.log-col-msg.log-weather { color: var(--accent-blue); }
+.log-col-msg.log-event { color: var(--accent-gold); }
+.log-col-msg.log-info { color: var(--text-muted); }
+
+/* Legacy stat classes (still used in agent card) */
+.stat-muted { color: var(--text-muted); font-weight: 400; }
+.stat-success { color: var(--accent-green); font-weight: 600; }
+
+/* ─── Coin Icon ─── */
+
+.coin-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+  display: inline;
+  image-rendering: pixelated;
 }
 
 /* ─── Season Badges ─── */
@@ -1324,7 +1539,11 @@ label[for] {
   width: 36px;
   height: 36px;
   vertical-align: middle;
-  image-rendering: pixelated;
+}
+
+.purchase-item .crop-icon-img {
+  width: 18px;
+  height: 18px;
 }
 
 .seed-card-tier {
@@ -1582,12 +1801,63 @@ label[for] {
 /* ─── Responsive ─── */
 
 @media (max-width: 768px) {
+  /* ── Navbar ── */
+  #top-nav {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .nav-brand {
+    font-size: 18px;
+  }
+
+  .nav-links {
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .nav-links a {
+    font-size: 12px;
+    padding: 4px 8px;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+  }
+
+  .nav-links .season-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+  }
+
+  /* ── View Container ── */
+  #view-container {
+    padding: 16px 12px;
+  }
+
+  /* ── Landing ── */
   .landing-features {
     grid-template-columns: 1fr;
   }
 
+  /* ── Farm Grid ── */
+  .farm-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* ── Farm Detail ── */
+  .detail-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .detail-body {
     flex-direction: column;
+    gap: 10px;
+  }
+
+  .detail-canvas-wrap {
+    width: 100%;
   }
 
   .detail-canvas-wrap canvas {
@@ -1595,14 +1865,106 @@ label[for] {
     height: auto;
   }
 
-  .detail-canvas-wrap {
+  .detail-info {
+    height: auto;
+    gap: 8px;
     width: 100%;
   }
 
-  .farm-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  .detail-agent-card {
+    padding: 10px 14px;
   }
 
+  .agent-card-name {
+    font-size: 16px;
+    margin-bottom: 4px;
+  }
+
+  .agent-card-action {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .detail-farm-card {
+    padding: 10px 14px;
+  }
+
+  .farm-card-row {
+    padding: 4px 0;
+    font-size: 12px;
+  }
+
+  .farm-card-label {
+    font-size: 11px;
+  }
+
+  .detail-inventory {
+    flex: none;
+    padding: 10px 12px;
+  }
+
+  .inv-section-label {
+    font-size: 10px;
+    margin-bottom: 6px;
+  }
+
+  .inv-grid {
+    gap: 5px;
+  }
+
+  .inv-slot {
+    width: 36px;
+    height: 36px;
+  }
+
+  .inv-slot-icon {
+    font-size: 18px;
+  }
+
+  .inv-slot-icon img,
+  .inv-radish-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .inv-slot-qty {
+    min-width: 14px;
+    height: 14px;
+    font-size: 9px;
+  }
+
+  .detail-log-section {
+    margin-top: 16px;
+  }
+
+  .detail-log-title {
+    font-size: 14px;
+    padding: 10px 14px;
+  }
+
+  .detail-log-table {
+    font-size: 12px;
+  }
+
+  .detail-log-table td {
+    padding: 6px 10px;
+  }
+
+  .detail-log-table thead th {
+    padding: 6px 10px;
+  }
+
+  .log-col-time {
+    width: 60px;
+    font-size: 11px;
+  }
+
+  .log-col-type {
+    width: 28px;
+    font-size: 14px;
+  }
+
+  /* ── Shop ── */
   .seed-grid {
     grid-template-columns: 1fr;
   }
@@ -1624,5 +1986,137 @@ label[for] {
 
   .info-divider {
     display: none;
+  }
+
+  /* ── Market ── */
+  .view-market {
+    padding: 12px 8px;
+  }
+
+  .market-header {
+    padding: 16px;
+  }
+
+  .market-header h1 {
+    font-size: 22px;
+  }
+
+  .market-tab {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+
+  .market-content {
+    padding: 16px 12px;
+  }
+
+  .orderbook-split {
+    grid-template-columns: 1fr;
+  }
+
+  .order-table {
+    font-size: 12px;
+  }
+
+  .trades-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .price-table {
+    font-size: 12px;
+  }
+
+  .price-table th,
+  .price-table td {
+    padding: 8px 6px;
+  }
+
+  /* ── Leaderboard ── */
+  .lb-header h2 {
+    font-size: 22px;
+  }
+
+  .lb-tabs {
+    flex-wrap: wrap;
+  }
+
+  .lb-tab {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .lb-row {
+    padding: 10px 12px;
+  }
+
+  .lb-values {
+    width: 100px;
+  }
+
+  .lb-value {
+    font-size: 14px;
+  }
+
+  .lb-extra {
+    font-size: 10px;
+  }
+
+  /* ── Season Tooltip on mobile ── */
+  .season-tooltip {
+    left: auto;
+    right: 0;
+    transform: none;
+    min-width: 200px;
+  }
+
+  .season-tooltip::before {
+    left: auto;
+    right: 16px;
+    transform: rotate(45deg);
+  }
+}
+
+/* ── Extra small screens ── */
+@media (max-width: 480px) {
+  #top-nav {
+    flex-wrap: wrap;
+  }
+
+  .nav-brand {
+    font-size: 16px;
+  }
+
+  .nav-links {
+    width: 100%;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .nav-links a {
+    font-size: 11px;
+    padding: 3px 6px;
+  }
+
+  .detail-nav {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .lb-th-value {
+    width: 80px;
+  }
+
+  .lb-values {
+    width: 80px;
+  }
+
+  .market-tab {
+    padding: 8px 8px;
+    font-size: 11px;
+  }
+
+  .shop-legend {
+    flex-direction: column;
+    gap: 8px;
   }
 }

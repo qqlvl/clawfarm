@@ -2,11 +2,12 @@ import { View } from './types';
 import { SimEngine } from '../engine/sim';
 import { Agent, CropId } from '../engine/types';
 import { CROP_DEFS } from '../engine/crops';
+import { COIN } from '../coin-icon';
 
 type Category = 'wealth' | 'harvests' | 'streak';
 
 const CATEGORIES: { key: Category; label: string; icon: string }[] = [
-  { key: 'wealth', label: 'Total Wealth', icon: '💰' },
+  { key: 'wealth', label: 'Total Wealth', icon: COIN },
   { key: 'harvests', label: 'Harvests', icon: '🌾' },
   { key: 'streak', label: 'Best Streak', icon: '🔥' },
 ];

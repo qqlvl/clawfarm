@@ -1,8 +1,10 @@
 import { View } from './types';
 import { SimEngine } from '../engine/sim';
 import { FarmRenderer } from '../renderer';
-import { LogEntry, CropId } from '../engine/types';
-import { CROP_DEFS, calculateTileCost } from '../engine/crops';
+import { LogEntry, CropId, Season } from '../engine/types';
+import { CROP_DEFS, ALL_CROP_IDS, calculateTileCost } from '../engine/crops';
+import radishIconUrl from '../assets/redish.png';
+import { COIN } from '../coin-icon';
 
 const ACTION_LABEL: Record<string, string> = {
   idle: 'Idle',
@@ -13,6 +15,14 @@ const ACTION_LABEL: Record<string, string> = {
   harvesting: 'Harvesting',
   selling: 'Trading',
   resting: 'Resting'
+};
+
+const LOG_LEVEL_ICON: Record<string, string> = {
+  action: '🌾',
+  weather: '💧',
+  event: '✨',
+  info: '📋',
+  warning: '⚠️'
 };
 
 const LOG_LEVEL_CLASS: Record<string, string> = {
@@ -35,6 +45,32 @@ const EVENT_DESCRIPTIONS: Record<string, string> = {
   pest_infestation: '🐛 Pests damage all crops'
 };
 
+const CROP_ICONS: Record<string, string> = {
+  wheat: '🌾',
+  radish: `<img src="${radishIconUrl}" alt="radish" class="inv-radish-icon">`,
+  carrot: '🥕',
+  corn: '🌽',
+  tomat: '🍅',
+  pumpkin: '🎃',
+};
+
+const SEASON_EMOJIS: Record<Season, string> = {
+  spring: '🌸', summer: '☀️', autumn: '🍂', winter: '❄️'
+};
+
+function getSeasonTooltipHTML(season: Season): string {
+  const boosted = ALL_CROP_IDS.filter(c => CROP_DEFS[c].preferredSeasons.includes(season));
+  const slowed = ALL_CROP_IDS.filter(c => CROP_DEFS[c].badSeasons.includes(season) && !CROP_DEFS[c].forbiddenSeasons.includes(season));
+  const blocked = ALL_CROP_IDS.filter(c => CROP_DEFS[c].forbiddenSeasons.includes(season));
+
+  let html = `<div class="season-tooltip-title">${SEASON_EMOJIS[season]} ${season.charAt(0).toUpperCase() + season.slice(1)} Effects</div>`;
+  if (boosted.length > 0) html += `<div class="season-tooltip-row boost">⚡ Boosted: ${boosted.map(c => CROP_DEFS[c].name).join(', ')}</div>`;
+  if (slowed.length > 0) html += `<div class="season-tooltip-row slow">🐌 Slowed: ${slowed.map(c => CROP_DEFS[c].name).join(', ')}</div>`;
+  if (blocked.length > 0) html += `<div class="season-tooltip-row blocked">🚫 Can't grow: ${blocked.map(c => CROP_DEFS[c].name).join(', ')}</div>`;
+  if (boosted.length === 0 && slowed.length === 0 && blocked.length === 0) html += `<div class="season-tooltip-row">All crops grow at normal speed</div>`;
+  return html;
+}
+
 export class FarmDetailView implements View {
   private el: HTMLElement | null = null;
   private farmRenderer: FarmRenderer | null = null;
@@ -42,7 +78,7 @@ export class FarmDetailView implements View {
   private row: number;
   private col: number;
   private farmId: string;
-  private logEl: HTMLElement | null = null;
+  private logBodyEl: HTMLElement | null = null;
   private statsEl: HTMLElement | null = null;
   private logCount = 0;
   private initialized = false;
@@ -76,16 +112,27 @@ export class FarmDetailView implements View {
         <div class="detail-canvas-wrap">
           <canvas id="farm-canvas" width="${FarmRenderer.CANVAS_SIZE}" height="${FarmRenderer.CANVAS_SIZE}"></canvas>
         </div>
-        <div class="detail-info">
-          <div class="detail-stats" id="detail-stats"></div>
-          <h3 class="detail-log-title">Activity Log</h3>
-          <div class="detail-log" id="detail-log"></div>
+        <div class="detail-info" id="detail-stats"></div>
+      </div>
+      <div class="detail-log-section">
+        <h3 class="detail-log-title">📜 Activity Log</h3>
+        <div class="detail-log-wrap">
+          <table class="detail-log-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th></th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody id="detail-log-body"></tbody>
+          </table>
         </div>
       </div>
     `;
     container.appendChild(this.el);
 
-    this.logEl = this.el.querySelector('#detail-log');
+    this.logBodyEl = this.el.querySelector('#detail-log-body');
     this.statsEl = this.el.querySelector('#detail-stats');
 
     const canvas = this.el.querySelector('#farm-canvas') as HTMLCanvasElement;
@@ -111,7 +158,7 @@ export class FarmDetailView implements View {
   unmount(): void {
     this.farmRenderer?.destroy();
     this.farmRenderer = null;
-    this.logEl = null;
+    this.logBodyEl = null;
     this.statsEl = null;
     this.logCount = 0;
     this.el?.remove();
@@ -135,64 +182,37 @@ export class FarmDetailView implements View {
     const cropTiles = farmData.tiles.filter(t => t.type === 'farmland' && t.crop).length;
     const farmlandTiles = farmData.tiles.filter(t => t.type === 'farmland').length;
     const farmEvents = state.events.filter(e => e.farmId === this.farmId);
-
     const seasonCap = state.season.charAt(0).toUpperCase() + state.season.slice(1);
 
-    let agentRows = '';
+    // Agent Card
+    let agentCardHTML = '';
     if (agent) {
       const actionLabel = ACTION_LABEL[agent.currentAction] || agent.currentAction;
-
-      const seedParts: string[] = [];
-      for (const [id, count] of Object.entries(agent.inventory.seeds)) {
-        if (count && count > 0) {
-          seedParts.push(`${CROP_DEFS[id as CropId]?.name || id} x${count}`);
-        }
-      }
-      const seedStr = seedParts.length > 0 ? seedParts.join(', ') : 'None';
-
-      const cropParts: string[] = [];
-      for (const [id, count] of Object.entries(agent.inventory.crops)) {
-        if (count && count > 0) {
-          cropParts.push(`${CROP_DEFS[id as CropId]?.name || id} x${count}`);
-        }
-      }
-      const cropStr = cropParts.length > 0 ? cropParts.join(', ') : 'None';
-
-      agentRows = `
-        <div class="stat-row">
-          <span class="stat-label">Agent</span>
-          <span class="stat-value">${agent.name}</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Action</span>
-          <span class="stat-value stat-action">${actionLabel}</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Energy</span>
-          <span class="stat-value">${Math.round(agent.energy)}</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Coins</span>
-          <span class="stat-value stat-coins">${agent.inventory.coins}</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Seeds</span>
-          <span class="stat-value stat-small">${seedStr}</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-label">Harvested</span>
-          <span class="stat-value stat-small">${cropStr}</span>
+      agentCardHTML = `
+        <div class="detail-agent-card">
+          <div class="agent-card-name">${agent.name}</div>
+          <div class="agent-card-action">${actionLabel}</div>
+          <div class="agent-card-row">
+            <div class="agent-card-stat">
+              <span class="stat-icon">⚡</span>
+              <span class="stat-num">${Math.round(agent.energy)}/100</span>
+            </div>
+            <div class="agent-card-stat">
+              <span class="stat-icon">${COIN}</span>
+              <span class="stat-num coins">${agent.inventory.coins}</span>
+            </div>
+          </div>
         </div>
       `;
     } else {
-      agentRows = `
-        <div class="stat-row">
-          <span class="stat-label">Agent</span>
-          <span class="stat-value stat-muted">None</span>
+      agentCardHTML = `
+        <div class="detail-agent-card">
+          <div class="agent-card-name stat-muted">No Agent</div>
         </div>
       `;
     }
 
+    // Farm Info Card
     const eventStr = farmEvents.length > 0
       ? farmEvents.map(e => {
           const desc = EVENT_DESCRIPTIONS[e.type] || 'Active event';
@@ -200,40 +220,82 @@ export class FarmDetailView implements View {
         }).join(' ')
       : '<span class="stat-muted">None</span>';
 
-    // Get farm to calculate next tile cost
     const farm = state.farms.find(f => f.id === this.farmId);
     const nextTileCost = farm ? calculateTileCost(farm.tilledCount) : 0;
     const tileCostStr = nextTileCost === 0
       ? '<span class="stat-success">Free</span>'
-      : `${nextTileCost} 💰`;
+      : `${nextTileCost} ${COIN}`;
 
-    this.statsEl.innerHTML = `
-      <div class="stat-row">
-        <span class="stat-label">Season</span>
-        <span class="stat-value season-badge season-${state.season}">${seasonCap}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Tick</span>
-        <span class="stat-value">${state.tick}</span>
-      </div>
-      ${agentRows}
-      <div class="stat-row">
-        <span class="stat-label">Farmland</span>
-        <span class="stat-value">${farmlandTiles} tiles (${cropTiles} planted)</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Next Tile</span>
-        <span class="stat-value">${tileCostStr}</span>
-      </div>
-      <div class="stat-row">
-        <span class="stat-label">Events</span>
-        <span class="stat-value">${eventStr}</span>
+    const farmInfoHTML = `
+      <div class="detail-farm-card">
+        <div class="farm-card-row">
+          <span class="farm-card-label">Season</span>
+          <span class="farm-card-value"><span class="season-badge season-${state.season}">${SEASON_EMOJIS[state.season]} ${seasonCap}<div class="season-tooltip">${getSeasonTooltipHTML(state.season)}</div></span></span>
+        </div>
+        <div class="farm-card-row">
+          <span class="farm-card-label">Tick</span>
+          <span class="farm-card-value">${state.tick}</span>
+        </div>
+        <div class="farm-card-row">
+          <span class="farm-card-label">Farmland</span>
+          <span class="farm-card-value">${farmlandTiles} tiles (${cropTiles} planted)</span>
+        </div>
+        <div class="farm-card-row">
+          <span class="farm-card-label">Next Tile</span>
+          <span class="farm-card-value">${tileCostStr}</span>
+        </div>
+        <div class="farm-card-row">
+          <span class="farm-card-label">Events</span>
+          <span class="farm-card-value">${eventStr}</span>
+        </div>
       </div>
     `;
+
+    // Inventory Grid
+    let inventoryHTML = '';
+    if (agent) {
+      const seedSlots = ALL_CROP_IDS.map(cropId => {
+        const count = agent.inventory.seeds[cropId] || 0;
+        return this.renderInvSlot(cropId, count);
+      }).join('');
+
+      const cropSlots = ALL_CROP_IDS.map(cropId => {
+        const count = agent.inventory.crops[cropId] || 0;
+        return this.renderInvSlot(cropId, count);
+      }).join('');
+
+      inventoryHTML = `
+        <div class="detail-inventory">
+          <div class="detail-inventory-section">
+            <div class="inv-section-label">🎒 Seeds</div>
+            <div class="inv-grid">${seedSlots}</div>
+          </div>
+          <div class="detail-inventory-section">
+            <div class="inv-section-label">📦 Harvested</div>
+            <div class="inv-grid">${cropSlots}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    this.statsEl.innerHTML = agentCardHTML + farmInfoHTML + inventoryHTML;
+  }
+
+  private renderInvSlot(cropId: CropId, count: number): string {
+    const icon = CROP_ICONS[cropId] || '🌱';
+    if (count > 0) {
+      return `
+        <div class="inv-slot filled" title="${CROP_DEFS[cropId].name}: ${count}">
+          <span class="inv-slot-icon">${icon}</span>
+          <span class="inv-slot-qty">${count}</span>
+        </div>
+      `;
+    }
+    return `<div class="inv-slot" title="${CROP_DEFS[cropId].name}"></div>`;
   }
 
   private renderLog(force = false): void {
-    if (!this.logEl) return;
+    if (!this.logBodyEl) return;
 
     const state = this.engine.getState();
     const filtered = state.log.filter(
@@ -241,7 +303,7 @@ export class FarmDetailView implements View {
     );
 
     if (force || filtered.length < this.logCount) {
-      this.logEl.innerHTML = '';
+      this.logBodyEl.innerHTML = '';
       this.logCount = 0;
     }
 
@@ -249,14 +311,27 @@ export class FarmDetailView implements View {
 
     const newEntries = filtered.slice(this.logCount);
     for (const entry of newEntries) {
-      const div = document.createElement('div');
-      const cls = LOG_LEVEL_CLASS[entry.level] || '';
-      div.className = `log-entry ${cls}`;
-      div.innerHTML = `<span class="log-tick">[${entry.tick}]</span> ${entry.message}`;
-      this.logEl.appendChild(div);
+      const tr = document.createElement('tr');
+      const levelClass = LOG_LEVEL_CLASS[entry.level] || '';
+      const icon = LOG_LEVEL_ICON[entry.level] || '📋';
+
+      const ticksAgo = state.tick - entry.tick;
+      const secondsAgo = Math.round(ticksAgo * 1.5);
+      const timeAgo = secondsAgo === 0 ? 'just now'
+        : secondsAgo < 60 ? `${secondsAgo}s ago`
+        : `${Math.floor(secondsAgo / 60)}m ${secondsAgo % 60}s ago`;
+
+      tr.innerHTML = `
+        <td class="log-col-time">${timeAgo}</td>
+        <td class="log-col-type">${icon}</td>
+        <td class="log-col-msg ${levelClass}">${entry.message}</td>
+      `;
+      this.logBodyEl.appendChild(tr);
       this.logCount++;
     }
 
-    this.logEl.scrollTop = this.logEl.scrollHeight;
+    // Scroll the log wrapper to bottom
+    const wrap = this.logBodyEl.closest('.detail-log-wrap');
+    if (wrap) wrap.scrollTop = wrap.scrollHeight;
   }
 }

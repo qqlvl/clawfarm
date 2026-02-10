@@ -2,6 +2,7 @@ import { View } from './types';
 import { SimEngine } from '../engine/sim';
 import { MarketOrder, MarketTrade, CropId } from '../engine/types';
 import { CROP_DEFS, ALL_CROP_IDS } from '../engine/crops';
+import { COIN } from '../coin-icon';
 
 type MarketTab = 'orders' | 'trades' | 'stats';
 
@@ -211,7 +212,7 @@ export class MarketView implements View {
         <td>${itemTypeLabel}</td>
         <td>${order.quantity}</td>
         <td class="${priceClass}">
-          ${order.pricePerUnit}💰 ${priceLabel}
+          ${order.pricePerUnit}${COIN} ${priceLabel}
           <span class="shop-compare">(shop: ${shopPrice})</span>
         </td>
         <td class="agent-cell">${agentName}</td>
@@ -266,7 +267,7 @@ export class MarketView implements View {
             </div>
             <div class="trade-detail">
               <span class="trade-label">Price:</span>
-              <span class="trade-value">${trade.pricePerUnit}💰 each (${trade.totalPrice}💰 total)</span>
+              <span class="trade-value">${trade.pricePerUnit}${COIN} each (${trade.totalPrice}${COIN} total)</span>
             </div>
           </div>
         </div>
@@ -308,7 +309,7 @@ export class MarketView implements View {
       const def = CROP_DEFS[cropId];
       const prices = avgPricesByCrop.get(cropId)!;
 
-      const seedMarketPrice = prices.seed !== null ? `${prices.seed}💰` : '-';
+      const seedMarketPrice = prices.seed !== null ? `${prices.seed}${COIN}` : '-';
       const seedDiscount = prices.seed !== null
         ? `${Math.round((1 - prices.seed / def.seedCost) * 100)}%`
         : '-';
@@ -317,10 +318,10 @@ export class MarketView implements View {
       return `
         <tr>
           <td class="crop-name">${def.name} <span class="tier-badge">T${def.tier}</span></td>
-          <td>${def.seedCost}💰</td>
+          <td>${def.seedCost}${COIN}</td>
           <td class="market-price">${seedMarketPrice}</td>
           <td class="discount ${discountClass}">${seedDiscount}</td>
-          <td>${def.sellPrice}💰</td>
+          <td>${def.sellPrice}${COIN}</td>
         </tr>
       `;
     }).join('');
@@ -339,7 +340,7 @@ export class MarketView implements View {
             <div class="stat-detail">All time</div>
           </div>
           <div class="stat-card">
-            <div class="market-stat-value">${totalVolume}💰</div>
+            <div class="market-stat-value">${totalVolume}${COIN}</div>
             <div class="market-stat-label">Trade Volume</div>
             <div class="stat-detail">Total coins traded</div>
           </div>

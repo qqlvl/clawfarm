@@ -2,7 +2,8 @@ import { View } from './types';
 import { SimEngine } from '../engine/sim';
 import { CROP_DEFS, ALL_CROP_IDS } from '../engine/crops';
 import { ShopPurchase } from '../engine/types';
-import radishIconUrl from '../assets/crops/radish_icon.png';
+import radishIconUrl from '../assets/redish.png';
+import { COIN } from '../coin-icon';
 
 export class ShopView implements View {
   private el: HTMLElement | null = null;
@@ -42,14 +43,14 @@ export class ShopView implements View {
       ? `${minutesUntilRefresh}:${secondsUntilRefresh.toString().padStart(2, '0')}`
       : '🔄 Restocking...';
 
-    // Crop icons per tier
+    // Crop icons
     const cropIcons: Record<string, string> = {
       wheat: '🌾',
       radish: `<img src="${radishIconUrl}" alt="radish" class="crop-icon-img">`,
       carrot: '🥕',
       corn: '🌽',
       tomat: '🍅',
-      pumpkin: '🎃'
+      pumpkin: '🎃',
     };
 
     // Render seed cards grouped by tier
@@ -76,11 +77,11 @@ export class ShopView implements View {
               <div class="seed-card-stats">
                 <div class="seed-stat">
                   <span class="seed-stat-label">Cost</span>
-                  <span class="seed-stat-value">${def.seedCost} 💰</span>
+                  <span class="seed-stat-value">${def.seedCost} ${COIN}</span>
                 </div>
                 <div class="seed-stat">
                   <span class="seed-stat-label">Sells for</span>
-                  <span class="seed-stat-value">${def.sellPrice} 💰</span>
+                  <span class="seed-stat-value">${def.sellPrice} ${COIN}</span>
                 </div>
                 <div class="seed-stat">
                   <span class="seed-stat-label">Time</span>
@@ -127,7 +128,7 @@ export class ShopView implements View {
           <span class="info-divider">•</span>
           <span class="info-item">📦 Higher tiers = rarer stock</span>
           <span class="info-divider">•</span>
-          <span class="info-item">💰 Agents compete for seeds!</span>
+          <span class="info-item">${COIN} Agents compete for seeds!</span>
         </div>
 
         <div class="seed-grid">
@@ -174,7 +175,7 @@ export class ShopView implements View {
           <td class="purchase-agent">${p.agentName}</td>
           <td class="purchase-item">${icon} ${def.name} <span class="purchase-tier">T${def.tier}</span></td>
           <td class="purchase-qty">x${p.quantity}</td>
-          <td class="purchase-cost">${p.totalCost} 💰</td>
+          <td class="purchase-cost">${p.totalCost} ${COIN}</td>
         </tr>
       `;
     }).join('');
