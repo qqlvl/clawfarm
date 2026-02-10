@@ -144,7 +144,8 @@ export class AgentAI {
 
     // Buy seeds if low — check market first, then fallback to shop
     // Use plantable seeds (season-compatible) to avoid buying when stuck with forbidden seeds
-    if (this.totalPlantableSeeds(agent, season) < 3 && agent.inventory.coins >= 5) {
+    // Increased threshold to 8 to allow accumulation for market trading
+    if (this.totalPlantableSeeds(agent, season) < 8 && agent.inventory.coins >= 5) {
       const bestMarketBuy = this.findBestMarketBuy(agent, season, state.market);
 
       if (bestMarketBuy) {
@@ -167,7 +168,7 @@ export class AgentAI {
       }
     }
 
-    // Sell excess seeds on market (if have >8 of one type)
+    // Sell excess seeds on market (if have >4 of one type)
     const excessSeeds = this.findExcessSeeds(agent);
     if (excessSeeds && agent.inventory.coins < 200) {
       const marketSell = this.createMarketSellOrder(excessSeeds, 'seed');
@@ -534,11 +535,12 @@ export class AgentAI {
 
   /**
    * Find excess seeds to sell on market
-   * Returns seed type and quantity if agent has >8 of any seed
+   * Returns seed type and quantity if agent has >4 of any seed
+   * Lowered from 8 to 4 to kickstart market trading
    */
   private findExcessSeeds(agent: Agent): { cropId: CropId; quantity: number } | null {
     for (const [cropId, count] of Object.entries(agent.inventory.seeds)) {
-      if (count && count > 8) {
+      if (count && count > 4) {
         return {
           cropId: cropId as CropId,
           quantity: Math.floor(count / 2) // Sell half
