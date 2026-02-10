@@ -289,30 +289,17 @@ export class SimEngine {
         crop.ticksSinceWatered++;
       }
 
-      // Plant death — wilting when not watered for too long (seasonal difficulty)
+      // Plant death — wilting when not watered for too long (balanced decay)
       const dryThreshold = def.growTicks * 0.3;
       const deathThreshold = def.growTicks * 0.5;
-
-      // Seasonal decay multipliers (winter harder, summer easier)
-      let decayMultiplier = 1.0;
-      if (this.state.season === 'winter') decayMultiplier = 1.3; // Winter: 30% faster decay
-      else if (this.state.season === 'summer') decayMultiplier = 0.8; // Summer: 20% slower decay
-
       if (crop.ticksSinceWatered > deathThreshold) {
-        crop.health = Math.max(0, crop.health - (0.8 * decayMultiplier));
+        crop.health = Math.max(0, crop.health - 0.8); // Balanced (was -0.5, originally -2)
       } else if (crop.ticksSinceWatered > dryThreshold) {
-        crop.health = Math.max(0, crop.health - (0.2 * decayMultiplier));
+        crop.health = Math.max(0, crop.health - 0.2); // Balanced (was -0.1, originally -0.5)
       }
 
-      // Growth rate with seasonal modifiers
+      // Growth rate
       let growRate = 1.0 / def.growTicks;
-
-      // Seasonal growth multipliers (winter slower, summer faster)
-      let seasonGrowthMod = 1.0;
-      if (this.state.season === 'winter') seasonGrowthMod = 0.9; // Winter: 10% slower
-      else if (this.state.season === 'summer') seasonGrowthMod = 1.1; // Summer: 10% faster
-
-      growRate *= seasonGrowthMod;
 
       // Soft season modifier (no death, only speed changes)
       let seasonMultiplier = 1.0; // Neutral by default

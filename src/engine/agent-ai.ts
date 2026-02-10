@@ -85,15 +85,15 @@ export class AgentAI {
         }
 
         // Water crops based on ticksSinceWatered (not moisture!)
-        // Water at 21% threshold = moderate challenge with randomness
+        // Water at 18% threshold = balanced challenge vs success
         if (tile.type === 'farmland' && tile.crop && !tile.crop.watered
             && tile.crop.stage !== 'harvestable') {
           const def = CROP_DEFS[tile.crop.cropId];
-          const wateringThreshold = def.growTicks * 0.21; // Moderate (was 18%, adds challenge)
+          const wateringThreshold = def.growTicks * 0.18; // Balanced (was 15%, originally 25%)
           const needsWater = tile.crop.ticksSinceWatered > wateringThreshold;
 
           if (needsWater) {
-            let waterScore = 110 - dist * 0.5; // High priority (sometimes conflicts with harvest)
+            let waterScore = 120 - dist * 0.5; // Super priority - higher than harvest!
             // Boost priority for wilting crops
             if (tile.crop.health < 50) waterScore += 30; // Critical: 150
             else if (tile.crop.health < 80) waterScore += 10; // Warning: 130
@@ -298,12 +298,6 @@ export class AgentAI {
 
       case 'watering':
         if (tile && tile.crop) {
-          // AI imperfection: 3% chance to get distracted and miss watering
-          if (rng.next() < 0.03) {
-            logs.push(`${agent.name} got distracted and forgot to water! 💭`);
-            energyCost = 1; // Still costs some energy (walked to tile)
-            break;
-          }
           tile.moisture = Math.min(1.0, tile.moisture + 0.4);
           tile.crop.watered = true;
           tile.crop.ticksSinceWatered = 0;
@@ -315,16 +309,6 @@ export class AgentAI {
 
       case 'harvesting':
         if (tile && tile.crop?.stage === 'harvestable') {
-          // AI imperfection: 3% chance to accidentally ruin harvest
-          if (rng.next() < 0.03) {
-            logs.push(`${agent.name} dropped the harvest! 🤦`);
-            delete tile.crop;
-            changes.push({ worldIndex: worldIdx, tile });
-            energyCost = 5;
-            agent.stats.cropsLost++;
-            agent.stats.consecutiveHarvests = 0;
-            break;
-          }
           const def = CROP_DEFS[tile.crop.cropId];
           const qty = rng.nextInt(def.yield[0], def.yield[1]);
           agent.inventory.crops[tile.crop.cropId] = (agent.inventory.crops[tile.crop.cropId] || 0) + qty;
