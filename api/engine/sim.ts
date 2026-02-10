@@ -585,7 +585,7 @@ export class SimEngine {
 
     return {
       lastRefreshTick: tick,
-      refreshInterval: 300, // 5 minutes at 1.5s per tick
+      refreshInterval: 200, // 5 minutes (200 ticks × 1.5s = 300s = 5min)
       stock: stock as Record<import('./types.js').CropId, number>,
       maxStock: maxStock as Record<import('./types.js').CropId, number>
     };
