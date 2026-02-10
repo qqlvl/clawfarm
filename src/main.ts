@@ -10,7 +10,8 @@ import { MarketView } from './views/market';
 import { ShopView } from './views/shop';
 // GIF loading now happens on-demand per agent, no preload needed
 import { supabase } from './supabase-client';
-import type { SimState } from './engine/types';
+import type { SimState, Season } from './engine/types';
+import { CROP_DEFS, ALL_CROP_IDS } from './engine/crops';
 
 // Sim tick every 1.5 sec — deliberate, calm farming pace
 const SIM_INTERVAL = 1500;
@@ -108,13 +109,40 @@ const container = document.getElementById('view-container')!;
 
 const seasonBadge = document.getElementById('season-badge');
 
+const seasonEmojis: Record<Season, string> = {
+  spring: '🌸', summer: '☀️', autumn: '🍂', winter: '❄️'
+};
+
+function getSeasonTooltipHTML(season: Season): string {
+  const boosted = ALL_CROP_IDS.filter(c => CROP_DEFS[c].preferredSeasons.includes(season));
+  const slowed = ALL_CROP_IDS.filter(c => CROP_DEFS[c].badSeasons.includes(season) && !CROP_DEFS[c].forbiddenSeasons.includes(season));
+  const blocked = ALL_CROP_IDS.filter(c => CROP_DEFS[c].forbiddenSeasons.includes(season));
+
+  let html = `<div class="season-tooltip-title">${seasonEmojis[season]} ${season.charAt(0).toUpperCase() + season.slice(1)} Effects</div>`;
+
+  if (boosted.length > 0) {
+    html += `<div class="season-tooltip-row boost">⚡ Boosted: ${boosted.map(c => CROP_DEFS[c].name).join(', ')}</div>`;
+  }
+  if (slowed.length > 0) {
+    html += `<div class="season-tooltip-row slow">🐌 Slowed: ${slowed.map(c => CROP_DEFS[c].name).join(', ')}</div>`;
+  }
+  if (blocked.length > 0) {
+    html += `<div class="season-tooltip-row blocked">🚫 Can't grow: ${blocked.map(c => CROP_DEFS[c].name).join(', ')}</div>`;
+  }
+  if (boosted.length === 0 && slowed.length === 0 && blocked.length === 0) {
+    html += `<div class="season-tooltip-row">All crops grow at normal speed</div>`;
+  }
+
+  return html;
+}
+
 function updateSeasonBadge(): void {
   if (!seasonBadge) return;
   const state = engine.getState();
   if (!state.season) return;
   const s = state.season;
   const label = s.charAt(0).toUpperCase() + s.slice(1);
-  seasonBadge.textContent = label;
+  seasonBadge.innerHTML = `${seasonEmojis[s]} ${label}<div class="season-tooltip">${getSeasonTooltipHTML(s)}</div>`;
   seasonBadge.className = `season-badge season-${s}`;
 }
 

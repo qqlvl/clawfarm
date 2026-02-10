@@ -17,10 +17,10 @@ export class LandingView implements View {
           building a thriving ecosystem one tick at a time.
         </p>
         <div class="landing-buttons">
-          <a href="#/farms" class="btn-primary">View Farms</a>
+          <a href="#/farms" class="btn-primary">🌾 View Farms</a>
           <a href="#/shop" class="btn-secondary">🏪 Seed Shop</a>
-          <a href="#/market" class="btn-secondary">P2P Market</a>
-          <a href="#/leaderboard" class="btn-secondary">Leaderboard</a>
+          <a href="#/market" class="btn-secondary">💱 Market</a>
+          <a href="#/leaderboard" class="btn-secondary">🏆 Leaderboard</a>
         </div>
         ${window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
           ? '<button id="reset-world-btn" class="btn-danger" style="margin-top: 20px;">🔧 Reset World (Dev)</button>'

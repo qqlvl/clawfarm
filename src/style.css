@@ -441,12 +441,72 @@ label[for] {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  position: relative;
+  cursor: pointer;
 }
 
 .season-spring { color: #6ab04c; background: rgba(106, 176, 76, 0.15); }
 .season-summer { color: #e67e22; background: rgba(230, 126, 34, 0.15); }
 .season-autumn { color: #d35400; background: rgba(211, 84, 0, 0.15); }
 .season-winter { color: #3498db; background: rgba(52, 152, 219, 0.15); }
+
+/* Season tooltip */
+.season-tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 240px;
+  padding: 14px 16px;
+  background: #2a2318;
+  border: 1px solid rgba(232, 193, 112, 0.25);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  text-align: left;
+  white-space: normal;
+}
+
+.season-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 10px;
+  height: 10px;
+  background: #2a2318;
+  border-left: 1px solid rgba(232, 193, 112, 0.25);
+  border-top: 1px solid rgba(232, 193, 112, 0.25);
+}
+
+.season-badge:hover .season-tooltip {
+  display: block;
+}
+
+.season-tooltip-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e8c170;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(232, 193, 112, 0.15);
+}
+
+.season-tooltip-row {
+  font-size: 13px;
+  color: #c4a882;
+  padding: 3px 0;
+  line-height: 1.4;
+}
+
+.season-tooltip-row.boost { color: #6ab04c; }
+.season-tooltip-row.slow { color: #e67e22; }
+.season-tooltip-row.blocked { color: #e74c3c; }
 
 /* ─── Event Badges ─── */
 

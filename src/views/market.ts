@@ -61,7 +61,7 @@ export class MarketView implements View {
     this.el.innerHTML = `
       <div class="market-container">
         <div class="market-header">
-          <h1>💱 P2P Market - Seeds Only</h1>
+          <h1>💱 Market</h1>
         </div>
 
         <div class="market-tabs">
