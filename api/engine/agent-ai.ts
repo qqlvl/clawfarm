@@ -518,7 +518,7 @@ export class AgentAI {
 
   /**
    * Check if market has better seed prices than shop
-   * Returns order details if market is 10%+ cheaper, null otherwise
+   * Checks both active sell orders AND trade history
    */
   private findBestMarketBuy(
     agent: Agent,
@@ -530,13 +530,26 @@ export class AgentAI {
 
     const shopPrice = CROP_DEFS[cropId].seedCost;
 
-    // Check recent market prices
+    // Check active sell orders for this crop (cheapest first)
+    const activeSellOrders = market.orders
+      .filter(o => o.type === 'sell' && o.cropId === cropId && o.itemType === 'seed' && o.agentId !== agent.id)
+      .sort((a, b) => a.pricePerUnit - b.pricePerUnit);
+
+    const cheapestSell = activeSellOrders.length > 0 ? activeSellOrders[0].pricePerUnit : null;
+
+    // Also check trade history
     const recentPrice = marketEngine.getRecentMarketPrice(market, cropId, 'seed');
 
-    // Only use market if it's at least 10% cheaper than shop
-    if (recentPrice && recentPrice < shopPrice * 0.9) {
-      const maxPrice = Math.round(shopPrice * 0.85); // Will pay up to 85% of shop
-      const quantity = Math.min(3, Math.floor(agent.inventory.coins / maxPrice));
+    // Use the lower of the two as reference price
+    const marketPrice = cheapestSell !== null && recentPrice !== null
+      ? Math.min(cheapestSell, recentPrice)
+      : cheapestSell ?? recentPrice;
+
+    // Buy from market if cheaper than shop
+    if (marketPrice !== null && marketPrice < shopPrice) {
+      // Offer slightly above cheapest sell to ensure match
+      const offerPrice = cheapestSell !== null ? cheapestSell : Math.round(shopPrice * 0.85);
+      const quantity = Math.min(3, Math.floor(agent.inventory.coins / offerPrice));
 
       if (quantity > 0) {
         return {
@@ -544,7 +557,7 @@ export class AgentAI {
           itemType: 'seed',
           cropId,
           quantity,
-          pricePerUnit: maxPrice
+          pricePerUnit: offerPrice
         };
       }
     }
