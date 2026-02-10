@@ -89,7 +89,7 @@ export class AgentAI {
         if (tile.type === 'farmland' && tile.crop && !tile.crop.watered
             && tile.crop.stage !== 'harvestable') {
           const def = CROP_DEFS[tile.crop.cropId];
-          const wateringThreshold = def.growTicks * 0.15; // Water at 15% of growTicks
+          const wateringThreshold = def.growTicks * 0.25; // Water at 25% of growTicks
           const needsWater = tile.crop.ticksSinceWatered > wateringThreshold;
 
           if (needsWater) {
@@ -101,11 +101,14 @@ export class AgentAI {
           }
         }
 
-        // Plant on empty farmland
+        // Plant on empty farmland (limit concurrent crops to 3)
         if (tile.type === 'farmland' && !tile.crop) {
-          const cropId = this.pickCrop(agent, season);
-          if (cropId) {
-            candidates.push({ action: 'planting', score: 50 - dist * 0.5, tx: wx, ty: wy, ticks: 2, cropId });
+          const activeCrops = tiles.filter(t => t.type === 'farmland' && t.crop).length;
+          if (activeCrops < 3) {
+            const cropId = this.pickCrop(agent, season);
+            if (cropId) {
+              candidates.push({ action: 'planting', score: 50 - dist * 0.5, tx: wx, ty: wy, ticks: 2, cropId });
+            }
           }
         }
 
@@ -386,9 +389,24 @@ export class AgentAI {
     });
     if (affordable.length === 0) return null;
 
-    // Sort by tier descending — buy highest tier possible
-    affordable.sort((a, b) => CROP_DEFS[b].tier - CROP_DEFS[a].tier);
-    return affordable[0];
+    // Randomized strategy: 60% high tier, 40% low tier (for safer farming)
+    const wantsHighTier = Math.random() < 0.6;
+
+    if (wantsHighTier) {
+      // Buy highest tier possible
+      affordable.sort((a, b) => CROP_DEFS[b].tier - CROP_DEFS[a].tier);
+      return affordable[0];
+    } else {
+      // Buy low tier (tier 1-2) for safer profit
+      const lowTier = affordable.filter(id => CROP_DEFS[id].tier <= 2);
+      if (lowTier.length > 0) {
+        lowTier.sort((a, b) => CROP_DEFS[b].tier - CROP_DEFS[a].tier);
+        return lowTier[0];
+      }
+      // Fallback to highest if no low tier available
+      affordable.sort((a, b) => CROP_DEFS[b].tier - CROP_DEFS[a].tier);
+      return affordable[0];
+    }
   }
 
   private totalSeeds(agent: Agent): number {
