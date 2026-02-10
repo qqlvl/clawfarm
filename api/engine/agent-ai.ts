@@ -1,4 +1,4 @@
-import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile, SimState, GlobalMarket, ItemType, OrderType } from './types.js';
+import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile, SimState, GlobalMarket, ItemType, OrderType, ShopPurchase } from './types.js';
 import { CROP_DEFS, ALL_CROP_IDS, calculateTileCost } from './crops.js';
 import { Rng } from './random.js';
 import { marketEngine } from './market.js';
@@ -101,10 +101,10 @@ export class AgentAI {
           }
         }
 
-        // Plant on empty farmland (limit concurrent crops to 3)
+        // Plant on empty farmland (limit concurrent crops to 6)
         if (tile.type === 'farmland' && !tile.crop) {
           const activeCrops = tiles.filter(t => t.type === 'farmland' && t.crop).length;
-          if (activeCrops < 3) {
+          if (activeCrops < 6) {
             const cropId = this.pickCrop(agent, season);
             if (cropId) {
               candidates.push({ action: 'planting', score: 50 - dist * 0.5, tx: wx, ty: wy, ticks: 2, cropId });
@@ -400,6 +400,18 @@ export class AgentAI {
             agent.inventory.seeds[buyId] = (agent.inventory.seeds[buyId] || 0) + buyCount;
             state.shop.stock[buyId] = shopStock - buyCount;
             logs.push(`${agent.name} buys ${buyCount} ${def.name} seeds (${state.shop.stock[buyId]} left)${wasFallback ? ' ⬇️' : ''}`);
+
+            // Record purchase in shop log
+            const purchase: ShopPurchase = {
+              tick: state.tick,
+              agentId: agent.id,
+              agentName: agent.name,
+              cropId: buyId,
+              quantity: buyCount,
+              totalCost: buyCount * def.seedCost
+            };
+            state.shop.purchaseLog.unshift(purchase);
+            if (state.shop.purchaseLog.length > 50) state.shop.purchaseLog.pop();
           }
           // Don't log anything if no purchase - reduces spam
         }

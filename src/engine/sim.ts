@@ -600,11 +600,15 @@ export class SimEngine {
       maxStock[cropId] = max;
     }
 
+    // Preserve existing purchase log on restock, or start empty
+    const existingLog = this.state?.shop?.purchaseLog || [];
+
     return {
       lastRefreshTick: tick,
       refreshInterval: 200, // 5 minutes (200 ticks × 1.5s = 300s = 5min)
       stock: stock as Record<import('./types').CropId, number>,
-      maxStock: maxStock as Record<import('./types').CropId, number>
+      maxStock: maxStock as Record<import('./types').CropId, number>,
+      purchaseLog: existingLog
     };
   }
 

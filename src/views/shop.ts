@@ -1,6 +1,7 @@
 import { View } from './types';
 import { SimEngine } from '../engine/sim';
 import { CROP_DEFS, ALL_CROP_IDS } from '../engine/crops';
+import { ShopPurchase } from '../engine/types';
 
 export class ShopView implements View {
   private el: HTMLElement | null = null;
@@ -103,6 +104,10 @@ export class ShopView implements View {
       })
       .join('');
 
+    // Purchase log
+    const purchases = shop.purchaseLog || [];
+    const purchaseLogHTML = this.renderPurchaseLog(purchases, state.tick, cropIcons);
+
     this.el.innerHTML = `
       <div class="shop-wrapper">
         <div class="shop-header">
@@ -136,6 +141,58 @@ export class ShopView implements View {
             <span class="legend-badge tier-5">T5-T6 Rare</span>
           </div>
         </div>
+
+        ${purchaseLogHTML}
+      </div>
+    `;
+  }
+
+  private renderPurchaseLog(purchases: ShopPurchase[], currentTick: number, cropIcons: Record<string, string>): string {
+    if (purchases.length === 0) {
+      return `
+        <div class="purchase-log">
+          <h3 class="purchase-log-title">📜 Purchase History</h3>
+          <div class="purchase-log-empty">No purchases yet — agents will buy seeds soon!</div>
+        </div>
+      `;
+    }
+
+    const rows = purchases.slice(0, 20).map(p => {
+      const def = CROP_DEFS[p.cropId];
+      const icon = cropIcons[p.cropId] || '🌱';
+      const ticksAgo = currentTick - p.tick;
+      const timeAgo = ticksAgo === 0 ? 'just now'
+        : ticksAgo < 60 ? `${ticksAgo}t ago`
+        : `${Math.floor(ticksAgo / 60)}m ago`;
+
+      return `
+        <tr class="purchase-row">
+          <td class="purchase-time">${timeAgo}</td>
+          <td class="purchase-agent">${p.agentName}</td>
+          <td class="purchase-item">${icon} ${def.name} <span class="purchase-tier">T${def.tier}</span></td>
+          <td class="purchase-qty">x${p.quantity}</td>
+          <td class="purchase-cost">${p.totalCost} 💰</td>
+        </tr>
+      `;
+    }).join('');
+
+    return `
+      <div class="purchase-log">
+        <h3 class="purchase-log-title">📜 Purchase History</h3>
+        <table class="purchase-table">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Agent</th>
+              <th>Seed</th>
+              <th>Qty</th>
+              <th>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
       </div>
     `;
   }

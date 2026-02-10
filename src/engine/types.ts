@@ -176,12 +176,22 @@ export interface GlobalMarket {
   nextTradeId: number;
 }
 
+export interface ShopPurchase {
+  tick: number;
+  agentId: string;
+  agentName: string;
+  cropId: CropId;
+  quantity: number;
+  totalCost: number;
+}
+
 // Shop system - refreshes periodically with limited stock
 export interface ShopState {
   lastRefreshTick: number;           // When shop was last restocked
   refreshInterval: number;            // Ticks between refreshes (e.g., 300 = 5 min)
   stock: Record<CropId, number>;      // Current available quantity per seed
   maxStock: Record<CropId, number>;   // Max quantity per refresh (tier-based)
+  purchaseLog: ShopPurchase[];        // Recent purchase history
 }
 
 export interface SimState {
