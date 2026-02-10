@@ -640,7 +640,8 @@ export class FarmRenderer {
 
   private createAgentActor(agent: Agent): PIXI.Container {
     const source = this.getAgentGifSource(agent);
-    if (source) {
+    // Validate GIF source before creating sprite
+    if (source && source.frames && source.frames.length > 0 && source.frames[0]) {
       try {
         const sprite = new GifSprite({
           source,
@@ -649,22 +650,28 @@ export class FarmRenderer {
           animationSpeed: 1
         });
         sprite.anchor.set(0.5, 0.9);
-        const bounds = sprite.getLocalBounds();
-        const baseHeight = bounds.height || 0;
-        if (baseHeight > 0) {
-          const scale = AGENT_TARGET_HEIGHT / baseHeight;
-          sprite.scale.set(scale);
-        } else {
+
+        // Safe bounds check
+        try {
+          const bounds = sprite.getLocalBounds();
+          const baseHeight = bounds?.height || 0;
+          if (baseHeight > 0) {
+            const scale = AGENT_TARGET_HEIGHT / baseHeight;
+            sprite.scale.set(scale);
+          } else {
+            sprite.scale.set(AGENT_FALLBACK_SCALE);
+          }
+        } catch {
+          // If bounds check fails, use fallback scale
           sprite.scale.set(AGENT_FALLBACK_SCALE);
         }
+
         sprite.roundPixels = true;
         return sprite;
       } catch (e) {
         console.warn('GIF sprite creation failed, using fallback:', e);
         // GIF source has invalid frames — fall through to emoji fallback
       }
-    } else {
-      console.warn(`No GIF source for agent ${agent.name}, using emoji fallback (sources: ${this.agentGifSources.length})`);
     }
 
     const fallback = new PIXI.Text({

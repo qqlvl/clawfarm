@@ -188,7 +188,16 @@ export class AgentAI {
     candidates.sort((a, b) => b.score - a.score);
 
     if (candidates.length === 0) {
-      // Random walk
+      // DEBUG: Log why agent is idle
+      const debugInfo = {
+        seeds: this.totalSeeds(agent),
+        coins: agent.inventory.coins,
+        crops: Object.values(agent.inventory.crops).reduce((s, n) => s + (n || 0), 0),
+        energy: agent.energy,
+        farmland: tiles.filter(t => t.type === 'farmland').length,
+        activeCrops: tiles.filter(t => t.type === 'farmland' && t.crop).length
+      };
+      console.warn(`[AI] ${agent.name} IDLE - no candidates`, debugInfo);
       return { goal: null, tileChanges: [], logs: [], energyCost: 0 };
     }
 
