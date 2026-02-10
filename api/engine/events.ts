@@ -1,6 +1,6 @@
-import { ActiveEvent, Agent, CropId, EventType, Season, Tile } from './types';
-import { ALL_CROP_IDS, CROP_DEFS } from './crops';
-import { Rng } from './random';
+import { ActiveEvent, Agent, CropId, EventType, Season, Tile } from './types.js';
+import { ALL_CROP_IDS, CROP_DEFS } from './crops.js';
+import { Rng } from './random.js';
 
 interface EventDef {
   type: EventType;

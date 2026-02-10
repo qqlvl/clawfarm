@@ -1,4 +1,4 @@
-import { CropDef, CropId } from './types';
+import { CropDef, CropId } from './types.js';
 
 export const CROP_DEFS: Record<CropId, CropDef> = {
   wheat: {

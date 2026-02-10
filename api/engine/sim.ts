@@ -1,9 +1,9 @@
-import { Rng } from './random';
-import { Agent, Farm, LogEntry, Season, SimConfig, SimState, StepResult, Tile } from './types';
-import { CROP_DEFS } from './crops';
-import { rollForEvent, applyInstantEvent } from './events';
-import { AgentAI } from './agent-ai';
-import { marketEngine } from './market';
+import { Rng } from './random.js';
+import { Agent, Farm, LogEntry, Season, SimConfig, SimState, StepResult, Tile } from './types.js';
+import { CROP_DEFS } from './crops.js';
+import { rollForEvent, applyInstantEvent } from './events.js';
+import { AgentAI } from './agent-ai.js';
+import { marketEngine } from './market.js';
 
 const DEFAULT_CONFIG: SimConfig = {
   farmSize: 10,

@@ -8,9 +8,9 @@ import {
   CropId,
   LogEntry,
   GlobalMarket
-} from './types';
-import { CROP_DEFS } from './crops';
-import { Rng } from './random';
+} from './types.js';
+import { CROP_DEFS } from './crops.js';
+import { Rng } from './random.js';
 
 const ORDER_LIFETIME = 240; // Ticks before order expires (6 min at default speed)
 const COMMISSION_RATE = 0.03; // 3% commission

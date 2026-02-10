@@ -1,7 +1,7 @@
-import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile, SimState, GlobalMarket, ItemType, OrderType } from './types';
-import { CROP_DEFS, ALL_CROP_IDS } from './crops';
-import { Rng } from './random';
-import { marketEngine } from './market';
+import { Agent, AgentAction, AgentGoal, ActiveEvent, CropId, Farm, Season, Tile, SimState, GlobalMarket, ItemType, OrderType } from './types.js';
+import { CROP_DEFS, ALL_CROP_IDS } from './crops.js';
+import { Rng } from './random.js';
+import { marketEngine } from './market.js';
 
 interface TileChange {
   worldIndex: number;
