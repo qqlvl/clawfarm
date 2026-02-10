@@ -278,13 +278,13 @@ export class SimEngine {
         crop.ticksSinceWatered++;
       }
 
-      // Plant death — wilting when not watered for too long
+      // Plant death — wilting when not watered for too long (slower decay)
       const dryThreshold = def.growTicks * 0.3;
       const deathThreshold = def.growTicks * 0.5;
       if (crop.ticksSinceWatered > deathThreshold) {
-        crop.health = Math.max(0, crop.health - 2);
+        crop.health = Math.max(0, crop.health - 0.5); // Slower (was -2)
       } else if (crop.ticksSinceWatered > dryThreshold) {
-        crop.health = Math.max(0, crop.health - 0.5);
+        crop.health = Math.max(0, crop.health - 0.1); // Slower (was -0.5)
       }
 
       // Growth rate
@@ -332,21 +332,31 @@ export class SimEngine {
       // Reset watered flag
       crop.watered = false;
 
-      // Dead crop
+      // Dead crop - SAFETY NET: Plant freezes at health=1 instead of dying
       if (crop.health <= 0) {
+        crop.health = 1; // Prevent actual death - plant just stops growing
+        growRate = 0; // Freeze growth but keep plant alive
+
         const cropName = CROP_DEFS[crop.cropId].name;
-        delete tile.crop;
-        changedTiles.push(i);
-        // Track crop death for the agent on this farm
+        const debugInfo = {
+          ticksSinceWatered: crop.ticksSinceWatered,
+          growTicks: def.growTicks,
+          stage: crop.stage,
+          progress: Math.round(crop.growthProgress * 100)
+        };
+        console.warn(`[WILTING] ${cropName} critically dry on ${tile.farmId}`, debugInfo);
+
+        // Track as near-death event but don't delete crop
         const farmAgent = this.state.agents.find(a => a.farmId === tile.farmId);
         if (farmAgent) {
-          farmAgent.stats.cropsLost++;
+          farmAgent.stats.cropsLost++; // Track critical state
           farmAgent.stats.consecutiveHarvests = 0;
         }
+
         this.pushLog({
           tick: this.state.tick,
-          message: `${cropName} withered and died!`,
-          level: 'event',
+          message: `${cropName} is critically dry but survives! Water it to recover.`,
+          level: 'warning',
           farmId: tile.farmId
         });
       }
