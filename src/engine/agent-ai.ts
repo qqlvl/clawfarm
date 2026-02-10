@@ -176,13 +176,14 @@ export class AgentAI {
       }
     }
 
-    // Sell excess seeds on market (only if already farming AND no active sell orders)
+    // Sell excess seeds on market (only if already farming, have enough seeds, AND no active sell orders)
     const concurrentCrops = tiles.filter(t => t.type === 'farmland' && t.crop).length;
     const hasActiveSellOrder = state.market.orders.some(
       o => o.agentId === agent.id && o.type === 'sell'
     );
+    const hasEnoughSeeds = this.totalPlantableSeeds(agent, season) >= 8;
     const excessSeeds = this.findExcessSeeds(agent);
-    if (excessSeeds && concurrentCrops > 0 && !hasActiveSellOrder) {
+    if (excessSeeds && concurrentCrops > 0 && !hasActiveSellOrder && hasEnoughSeeds) {
       const marketSell = this.createMarketSellOrder(excessSeeds, 'seed', agent, season);
       candidates.push({
         action: 'market_sell',
