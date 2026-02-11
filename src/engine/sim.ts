@@ -590,8 +590,11 @@ export class SimEngine {
   private generateShopStock(tick: number): import('./types').ShopState {
     const stock: Record<string, number> = {};
     const maxStock: Record<string, number> = {};
+    const baselineAgents = 8;
+    const activeAgents = Math.max(baselineAgents, this.state?.agents?.length ?? baselineAgents);
+    const loadFactor = (activeAgents - baselineAgents) / baselineAgents;
 
-    // Stock ranges by tier - balanced for 8 agents, refresh every 200 ticks
+    // Base stock ranges per tier (tuned for ~8 agents, refresh every 200 ticks)
     const stockRanges: Record<number, [number, number]> = {
       1: [10, 15], // ~1.5 per agent
       2: [8, 12],  // ~1.2 per agent
@@ -603,9 +606,17 @@ export class SimEngine {
 
     // Chance for rare seeds to not appear at all
     const zeroChance: Record<number, number> = { 5: 0.3, 6: 0.4 };
+    // Low tiers scale more with population; high tiers remain scarce.
+    const tierElasticity: Record<number, number> = { 1: 0.8, 2: 0.7, 3: 0.55, 4: 0.45, 5: 0.3, 6: 0.2 };
+    // Hard caps prevent shop flooding if agent count grows a lot.
+    const tierScaleCap: Record<number, number> = { 1: 1.45, 2: 1.4, 3: 1.35, 4: 1.3, 5: 1.25, 6: 1.2 };
 
     for (const [cropId, def] of Object.entries(CROP_DEFS)) {
-      const [min, max] = stockRanges[def.tier] || [10, 20];
+      const [baseMin, baseMax] = stockRanges[def.tier] || [10, 20];
+      const elasticity = tierElasticity[def.tier] ?? 0.6;
+      const scale = Math.min(1 + loadFactor * elasticity, tierScaleCap[def.tier] ?? 1.35);
+      const min = Math.max(1, Math.round(baseMin * scale));
+      const max = Math.max(min, Math.round(baseMax * scale));
       const skipChance = zeroChance[def.tier] || 0;
       const quantity = this.rng.next() < skipChance ? 0 : this.rng.nextInt(min, max);
       stock[cropId] = quantity;
