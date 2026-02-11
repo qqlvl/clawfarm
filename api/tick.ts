@@ -29,100 +29,118 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
-    // Fetch current state
-    const { data: currentData, error: fetchError } = await supabase
-      .from('game_state')
-      .select('*')
-      .eq('id', 'main')
-      .single()
+    // Retry loop avoids lost updates when concurrent /tick or /add-agent writes happen.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: currentData, error: fetchError } = await supabase
+        .from('game_state')
+        .select('*')
+        .eq('id', 'main')
+        .single()
 
-    // If row doesn't exist (PGRST116 or no rows), treat as empty state and we'll create it
-    const rowNotFound = fetchError && (fetchError.code === 'PGRST116' || fetchError.message?.includes('0 rows'))
-
-    if (fetchError && !rowNotFound) {
-      // Real error, not just missing row
-      throw fetchError
-    }
-
-    // Check if enough time has passed since last update (skip if row doesn't exist yet)
-    if (currentData && currentData.updated_at) {
-      const lastUpdate = new Date(currentData.updated_at).getTime()
-      const now = Date.now()
-      const timeSinceUpdate = now - lastUpdate
-
-      if (timeSinceUpdate < MIN_TICK_INTERVAL) {
-        // Too soon, return current state without updating
-        return res.status(200).json({
-          state: currentData.state,
-          tick: currentData.tick,
-          skipped: true,
-          nextTickIn: MIN_TICK_INTERVAL - timeSinceUpdate
-        })
+      const rowNotFound = fetchError && (fetchError.code === 'PGRST116' || fetchError.message?.includes('0 rows'))
+      if (fetchError && !rowNotFound) {
+        throw fetchError
       }
-    }
 
-    // Initialize engine
-    const engine = new SimEngine({
-      seed: Date.now() % 100000,
-      farmSize: 16,
-      farmsPerRow: 8,
-      farmsPerCol: 8
-    })
+      if (currentData && currentData.updated_at) {
+        const lastUpdate = new Date(currentData.updated_at).getTime()
+        const now = Date.now()
+        const timeSinceUpdate = now - lastUpdate
 
-    // Check if state is empty or invalid (first run)
-    const stateIsEmpty = !currentData ||
-                         !currentData.state ||
-                         typeof currentData.state !== 'object' ||
-                         !currentData.state.tick ||
-                         !currentData.state.farms ||
-                         currentData.state.farms.length === 0
-
-    if (stateIsEmpty) {
-      // Fresh world - engine already has initial state from buildInitialState()
-      for (let i = 0; i < 8; i++) {
-        engine.addAgent()
+        if (timeSinceUpdate < MIN_TICK_INTERVAL) {
+          return res.status(200).json({
+            state: currentData.state,
+            tick: currentData.tick,
+            skipped: true,
+            nextTickIn: MIN_TICK_INTERVAL - timeSinceUpdate
+          })
+        }
       }
-      console.log('[API /tick] Initialized fresh world with 8 agents')
-    } else {
-      // Load existing state
-      engine.loadState(currentData.state as SimState)
-    }
 
-    // Advance simulation
-    engine.step()
-    const newState = engine.getState()
-
-    console.log('[API /tick] Saving state:', {
-      tick: newState.tick,
-      farms: newState.farms.length,
-      agents: newState.agents.length,
-      marketOrders: newState.market?.orders?.length || 0
-    })
-
-    // Save back to Supabase (upsert will insert if row doesn't exist)
-    const { error: updateError } = await supabase
-      .from('game_state')
-      .upsert({
-        id: 'main',
-        state: newState,
-        tick: newState.tick,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'id'
+      const engine = new SimEngine({
+        seed: Date.now() % 100000,
+        farmSize: 16,
+        farmsPerRow: 8,
+        farmsPerCol: 8
       })
 
-    if (updateError) {
-      console.error('[API /tick] Update error:', updateError)
-      throw updateError
+      const stateIsEmpty = !currentData ||
+                           !currentData.state ||
+                           typeof currentData.state !== 'object' ||
+                           !currentData.state.tick ||
+                           !currentData.state.farms ||
+                           currentData.state.farms.length === 0
+
+      if (stateIsEmpty) {
+        for (let i = 0; i < 8; i++) {
+          engine.addAgent()
+        }
+        console.log('[API /tick] Initialized fresh world with 8 agents')
+      } else {
+        engine.loadState(currentData.state as SimState)
+      }
+
+      engine.step()
+      const newState = engine.getState()
+
+      console.log('[API /tick] Saving state:', {
+        tick: newState.tick,
+        farms: newState.farms.length,
+        agents: newState.agents.length,
+        marketOrders: newState.market?.orders?.length || 0,
+        attempt: attempt + 1
+      })
+
+      if (!currentData) {
+        const { error: insertError } = await supabase
+          .from('game_state')
+          .upsert({
+            id: 'main',
+            state: newState,
+            tick: newState.tick,
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'id'
+          })
+
+        if (insertError) {
+          console.error('[API /tick] Insert error:', insertError)
+          throw insertError
+        }
+      } else {
+        const expectedTick = typeof currentData.tick === 'number' ? currentData.tick : 0
+        const { data: updatedRow, error: updateError } = await supabase
+          .from('game_state')
+          .update({
+            state: newState,
+            tick: newState.tick,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', 'main')
+          .eq('tick', expectedTick)
+          .select('id')
+          .maybeSingle()
+
+        if (updateError) {
+          console.error('[API /tick] Update error:', updateError)
+          throw updateError
+        }
+
+        if (!updatedRow) {
+          // Concurrent write happened; retry with fresh read.
+          continue
+        }
+      }
+
+      console.log('[API /tick] State saved successfully')
+      return res.status(200).json({
+        state: newState,
+        tick: newState.tick,
+        skipped: false
+      })
     }
 
-    console.log('[API /tick] State saved successfully')
-
-    return res.status(200).json({
-      state: newState,
-      tick: newState.tick,
-      skipped: false
-    })
+    return res.status(409).json({ error: 'Tick contention, retry' })
   } catch (error) {
     console.error('[API /tick] Error:', error)
     return res.status(500).json({ error: 'Failed to advance simulation' })

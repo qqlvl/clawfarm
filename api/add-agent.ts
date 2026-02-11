@@ -70,81 +70,94 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
-    const { data: currentData, error: fetchError } = await supabase
-      .from('game_state')
-      .select('*')
-      .eq('id', 'main')
-      .single()
 
-    if (fetchError || !currentData?.state) {
-      return res.status(400).json({ error: 'No active world - call /api/tick first' })
-    }
+    // Retry a few times to survive concurrent /tick writes without losing data.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: currentData, error: fetchError } = await supabase
+        .from('game_state')
+        .select('*')
+        .eq('id', 'main')
+        .single()
 
-    const state = currentData.state as SimState
+      if (fetchError || !currentData?.state) {
+        return res.status(400).json({ error: 'No active world - call /api/tick first' })
+      }
 
-    const existing = state.agents.find(a => a.name.trim().toLowerCase() === name.toLowerCase())
-    if (existing) {
+      const state = currentData.state as SimState
+
+      const existing = state.agents.find(a => a.name.trim().toLowerCase() === name.toLowerCase())
+      if (existing) {
+        return res.status(200).json({
+          success: true,
+          alreadyExists: true,
+          agent: {
+            id: existing.id,
+            name: existing.name,
+            farmId: existing.farmId,
+            inventory: existing.inventory
+          },
+          totalAgents: state.agents.length
+        })
+      }
+
+      const maxAgents = state.farms.length
+      if (state.agents.length >= maxAgents) {
+        return res.status(400).json({
+          error: `Max agents reached (${maxAgents}). Cannot add more.`,
+          agentCount: state.agents.length,
+          farmCount: maxAgents
+        })
+      }
+
+      const engine = new SimEngine({
+        seed: Date.now() % 100000,
+        farmSize: 16,
+        farmsPerRow: 8,
+        farmsPerCol: 8
+      })
+      engine.loadState(state)
+
+      const agent = engine.addAgent(name)
+      const newState = engine.getState()
+      const expectedTick = typeof currentData.tick === 'number' ? currentData.tick : state.tick
+
+      const { data: updatedRow, error: updateError } = await supabase
+        .from('game_state')
+        .update({
+          state: newState,
+          tick: newState.tick,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', 'main')
+        .eq('tick', expectedTick)
+        .select('id')
+        .maybeSingle()
+
+      if (updateError) {
+        console.error('[API /add-agent] Update error:', updateError)
+        throw updateError
+      }
+
+      if (!updatedRow) {
+        // Concurrent writer won. Retry with fresh state.
+        continue
+      }
+
+      console.log(`[API /add-agent] Added agent "${agent.name}" (${agent.id}) to farm ${agent.farmId}`)
+
       return res.status(200).json({
         success: true,
-        alreadyExists: true,
         agent: {
-          id: existing.id,
-          name: existing.name,
-          farmId: existing.farmId,
-          inventory: existing.inventory
+          id: agent.id,
+          name: agent.name,
+          farmId: agent.farmId,
+          inventory: agent.inventory
         },
-        totalAgents: state.agents.length
+        totalAgents: newState.agents.length
       })
     }
 
-    const maxAgents = state.farms.length
-    if (state.agents.length >= maxAgents) {
-      return res.status(400).json({
-        error: `Max agents reached (${maxAgents}). Cannot add more.`,
-        agentCount: state.agents.length,
-        farmCount: maxAgents
-      })
-    }
-
-    const engine = new SimEngine({
-      seed: Date.now() % 100000,
-      farmSize: 16,
-      farmsPerRow: 8,
-      farmsPerCol: 8
-    })
-    engine.loadState(state)
-
-    const agent = engine.addAgent(name)
-    const newState = engine.getState()
-
-    const { error: updateError } = await supabase
-      .from('game_state')
-      .upsert({
-        id: 'main',
-        state: newState,
-        tick: newState.tick,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'id'
-      })
-
-    if (updateError) {
-      console.error('[API /add-agent] Update error:', updateError)
-      throw updateError
-    }
-
-    console.log(`[API /add-agent] Added agent "${agent.name}" (${agent.id}) to farm ${agent.farmId}`)
-
-    return res.status(200).json({
-      success: true,
-      agent: {
-        id: agent.id,
-        name: agent.name,
-        farmId: agent.farmId,
-        inventory: agent.inventory
-      },
-      totalAgents: newState.agents.length
-    })
+    return res.status(409).json({ error: 'World updated concurrently, retry add-agent' })
   } catch (error) {
     console.error('[API /add-agent] Error:', error)
     return res.status(500).json({ error: 'Failed to add agent' })
