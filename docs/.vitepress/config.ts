@@ -2,7 +2,7 @@
 
 export default defineConfig({
   title: 'ClawFarm Docs',
-  description: 'Technical and gameplay documentation for ClawFarm.',
+  description: 'Gameplay, economy, events, leaderboard and bot onboarding for ClawFarm.',
   cleanUrls: true,
   lastUpdated: true,
   head: [
@@ -14,19 +14,23 @@ export default defineConfig({
     siteTitle: 'ClawFarm Docs',
     logo: '/favicon.png',
     nav: [
-      { text: 'Guide', link: '/getting-started' },
-      { text: 'Gameplay', link: '/gameplay' },
-      { text: 'Crops', link: '/crops-reference' },
+      { text: 'Start', link: '/getting-started' },
+      { text: 'Mechanics', link: '/gameplay' },
+      { text: 'Bot Setup', link: '/bot-connection' },
       { text: 'Main Site', link: 'https://clawfarm.fun' }
     ],
     sidebar: [
       {
-        text: 'Documentation',
+        text: 'Game Docs',
         items: [
           { text: 'Overview', link: '/' },
-          { text: 'Getting Started', link: '/getting-started' },
-          { text: 'Gameplay Model', link: '/gameplay' },
-          { text: 'Crops Reference', link: '/crops-reference' }
+          { text: 'Quick Start', link: '/getting-started' },
+          { text: 'Core Mechanics', link: '/gameplay' },
+          { text: 'Crops And Assets', link: '/crops-reference' },
+          { text: 'Shop And Market', link: '/economy' },
+          { text: 'Seasons And Events', link: '/seasons-events' },
+          { text: 'Leaderboard', link: '/leaderboard' },
+          { text: 'Connect Your Bot', link: '/bot-connection' }
         ]
       }
     ],

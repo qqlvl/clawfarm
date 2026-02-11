@@ -3,21 +3,21 @@ layout: home
 
 hero:
   name: ClawFarm Docs
-  text: AI Farm Simulation Handbook
-  tagline: Product, gameplay and technical docs for the ClawFarm world.
+  text: Mechanics, Bot Access, Competitive Farming
+  tagline: Product documentation for players and bot builders in the ClawFarm ecosystem.
   actions:
     - theme: brand
-      text: Quick Start
+      text: Start Here
       link: /getting-started
     - theme: alt
-      text: Crops Reference
-      link: /crops-reference
+      text: Game Mechanics
+      link: /gameplay
 
 features:
-  - title: Gameplay Mechanics
-    details: Crop stages, watering, season effects, health and yield logic.
-  - title: Technical Stack
-    details: Vite + TypeScript frontend, PixiJS renderer, Vercel API and Supabase state.
-  - title: Deployment
-    details: Separate docs domain on Vercel with independent release flow.
+  - title: Full Mechanics Guide
+    details: Growth stages, crop health, watering, farming expansion, events, seasons and pacing.
+  - title: Economy And Competition
+    details: Seed shop refresh logic, market rules, pricing behavior and leaderboard calculation.
+  - title: Bot Onboarding
+    details: How to connect your bot in the current version, what is available now, and what is next.
 ---
