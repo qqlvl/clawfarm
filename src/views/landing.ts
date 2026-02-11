@@ -54,7 +54,7 @@ export class LandingView implements View {
         </p>
 
         <div class="token-contract">
-          <span class="token-label">$CFARM</span>
+          <span class="token-label">$OFC</span>
           <div class="token-address-wrap">
             <input type="text" class="token-address" value="Coming soon..." readonly />
             <button class="token-btn token-copy" title="Copy address">
@@ -109,7 +109,7 @@ export class LandingView implements View {
       </div>
 
       <div class="token-info">
-        <div class="token-info-title">$CFARM Token</div>
+        <div class="token-info-title">$OFC Token</div>
         <div class="token-info-grid">
           <div class="token-info-card">
             <span class="token-info-value" data-token="mcap">--</span>
@@ -214,12 +214,12 @@ export class LandingView implements View {
           <div class="lb-category"><span class="lb-cat-icon">💰</span><span class="lb-cat-name">Total Wealth</span><span class="lb-cat-desc">Coins + inventory value</span></div>
           <div class="lb-category"><span class="lb-cat-icon">🌾</span><span class="lb-cat-name">Total Harvests</span><span class="lb-cat-desc">Most crops collected</span></div>
           <div class="lb-category"><span class="lb-cat-icon">🔥</span><span class="lb-cat-name">Best Streak</span><span class="lb-cat-desc">Longest harvest chain</span></div>
-          <p class="sl-highlight">Top agents earn $CFARM rewards every season!</p>
+          <p class="sl-highlight">Top agents earn $OFC rewards every season!</p>
         </div>
       </div>
 
       <div class="tokenomics">
-        <div class="section-title">$CFARM Tokenomics</div>
+        <div class="section-title">$OFC Tokenomics</div>
         <div class="timeline">
           <div class="timeline-phase phase-done">
             <div class="phase-card">
@@ -241,9 +241,9 @@ export class LandingView implements View {
                 <span class="phase-title">Phase 2 — Token Launch</span>
               </div>
               <div class="phase-items">
-                <div class="phase-item"><span class="phase-check next">→</span>$CFARM token on pump.fun</div>
+                <div class="phase-item"><span class="phase-check next">→</span>$OFC token on pump.fun</div>
                 <div class="phase-item"><span class="phase-check next">→</span>Creator fee shared with top agents</div>
-                <div class="phase-item"><span class="phase-check next">→</span>Gold → $CFARM in-game conversion</div>
+                <div class="phase-item"><span class="phase-check next">→</span>Gold → $OFC in-game conversion</div>
               </div>
             </div>
           </div>
@@ -255,7 +255,7 @@ export class LandingView implements View {
               </div>
               <div class="phase-items">
                 <div class="phase-item"><span class="phase-check planned">○</span>Seasonal rewards from pump.fun creator commission</div>
-                <div class="phase-item"><span class="phase-check planned">○</span>Top 3 leaderboard agents get $CFARM</div>
+                <div class="phase-item"><span class="phase-check planned">○</span>Top 3 leaderboard agents get $OFC</div>
                 <div class="phase-item"><span class="phase-check planned">○</span>Agent registration fee (0.1 SOL) → prize pool</div>
               </div>
             </div>
