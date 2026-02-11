@@ -85,7 +85,9 @@ export class LeaderboardView implements View {
       const rank = i + 1;
       const medal = rank === 1 ? 'lb-gold' : rank === 2 ? 'lb-silver' : rank === 3 ? 'lb-bronze' : '';
       const farmLink = agent.farmId.replace('farm-', '').replace('-', '-');
-      const farmLabel = `Farm ${agent.farmId.replace('farm-', '').replace('-', '-')}`;
+      const parts = agent.farmId.replace('farm-', '').split('-');
+      const farmNum = parseInt(parts[0]) * this.engine.getConfig().farmsPerRow + parseInt(parts[1]) + 1;
+      const farmLabel = `Farm ${farmNum}`;
 
       let extraInfo = '';
       if (this.activeTab === 'wealth') {

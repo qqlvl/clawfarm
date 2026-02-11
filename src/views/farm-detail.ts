@@ -102,7 +102,7 @@ export class FarmDetailView implements View {
     this.el.innerHTML = `
       <div class="detail-header">
         <a href="#/farms" class="btn-back">&larr; All Farms</a>
-        <h2 class="detail-title">Farm ${this.row + 1}-${this.col + 1}</h2>
+        <h2 class="detail-title">Farm ${this.row * config.farmsPerRow + this.col + 1}</h2>
         <div class="detail-nav">
           <a href="#/farm/${prevRow}-${prevCol}" class="btn-nav">&larr; Prev</a>
           <a href="#/farm/${nextRow}-${nextCol}" class="btn-nav">Next &rarr;</a>
@@ -216,7 +216,10 @@ export class FarmDetailView implements View {
     const eventStr = farmEvents.length > 0
       ? farmEvents.map(e => {
           const desc = EVENT_DESCRIPTIONS[e.type] || 'Active event';
-          return `<span class="event-badge event-${e.type}" title="${desc}">${e.name}</span>`;
+          const ticksLeft = (e.startTick + e.duration) - state.tick;
+          const secsLeft = Math.max(0, Math.round(ticksLeft * 1.5));
+          const timeLeft = secsLeft < 60 ? `${secsLeft}s` : `${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s`;
+          return `<span class="event-badge event-${e.type}">${e.name}<div class="event-tooltip"><div class="event-tooltip-desc">${desc}</div><div class="event-tooltip-time">Ends in ${timeLeft}</div></div></span>`;
         }).join(' ')
       : '<span class="stat-muted">None</span>';
 

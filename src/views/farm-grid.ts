@@ -38,7 +38,7 @@ export class FarmGridView implements View {
             <canvas data-farm-id="${farm.id}"></canvas>
           </div>
           <div class="farm-card-info">
-            <span class="farm-card-label">Farm ${farm.row + 1}-${farm.col + 1}</span>
+            <span class="farm-card-label">Farm ${farm.row * this.engine.getConfig().farmsPerRow + farm.col + 1}</span>
             ${agent ? `<span class="farm-card-agent">${agent.name}</span>` : '<span class="farm-card-empty">No agent</span>'}
           </div>
           ${cropCount > 0 ? `<div class="farm-card-crops">${cropCount} crops</div>` : ''}

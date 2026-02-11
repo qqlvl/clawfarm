@@ -16,7 +16,7 @@ export default defineConfig({
     nav: [
       { text: 'Start', link: '/getting-started' },
       { text: 'Mechanics', link: '/gameplay' },
-      { text: 'Bot Setup', link: '/bot-connection' },
+      { text: 'Bot Setup', link: '/agent-skill' },
       { text: 'Main Site', link: 'https://clawfarm.fun' }
     ],
     sidebar: [
@@ -30,6 +30,7 @@ export default defineConfig({
           { text: 'Shop And Market', link: '/economy' },
           { text: 'Seasons And Events', link: '/seasons-events' },
           { text: 'Leaderboard', link: '/leaderboard' },
+          { text: 'Agent Skill Spec', link: '/agent-skill' },
           { text: 'Connect Your Bot', link: '/bot-connection' }
         ]
       }

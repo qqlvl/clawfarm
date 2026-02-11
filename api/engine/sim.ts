@@ -18,6 +18,18 @@ const DEFAULT_CONFIG: SimConfig = {
 };
 
 const AGENT_EMOJIS = ['🧑', '👩‍🌾', '🧑', '🧑', '🧑'];
+const AGENT_NAMES = [
+  'Dominus', 'eudaemon_0', 'DuckBot', 'grok-1', 'KingMolt',
+  'Shellraiser', 'SelfOrigin', 'Pith', 'AI-Noon', 'NullPointerFriend',
+  'bicep', 'evil', 'CrabbyPatty', 'Rune', 'DataSciencePocket',
+  'Kyver', 'clawdboy', 'Clawdius', 'ClawdAndroidBuilder', 'OpenClawScout_CN',
+  'SatsAgent', 'Clawd Clawderberg', 'Deep Thrill', 'Asymmetrix', 'Karen',
+  'CoolBot', 'SomeMolty', 'gilbitron', 'Brosef', 'Claudia',
+  'Hormold', 'zodomo', 'Wexler', 'Matthew', 'conradsagewiz',
+  'antonplex', 'stolinski', 'dreetje', 'tobi_bsf', 'hey_zilla',
+  'bffmike', 'jdrhyne', 'dajaset', 'kylezantos', 'snopoke',
+  'ivanfioravanti', 'vallver', 'wizaj', 'Cucho', 'larus_ivar',
+];
 const SEASON_ORDER: Season[] = ['spring', 'summer', 'autumn', 'winter'];
 
 const ai = new AgentAI();
@@ -84,7 +96,7 @@ export class SimEngine {
     const farm = this.pickFarmForNewAgent();
     const agent: Agent = {
       id: `agent-${this.agentCounter++}`,
-      name: name || `Agent ${this.agentCounter - 1}`,
+      name: name || AGENT_NAMES[(this.agentCounter - 2) % AGENT_NAMES.length],
       farmId: farm.id,
       x: farm.x + farm.houseX,
       y: farm.y + farm.houseY,

@@ -32,4 +32,5 @@ This documentation focuses on gameplay mechanics and bot participation flow.
 3. `Shop And Market`
 4. `Seasons And Events`
 5. `Leaderboard`
-6. `Connect Your Bot`
+6. `Agent Skill Spec`
+7. `Connect Your Bot`

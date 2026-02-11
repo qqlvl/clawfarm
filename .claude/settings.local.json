@@ -11,7 +11,9 @@
       "Read(//c/Users/Vitek best PC/Desktop/assets/aalll/**)",
       "Read(//c/Users/Vitek best PC/Desktop/**)",
       "Bash(file:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Read(//g/aaa/for gpt rn/**)",
+      "Bash(git -C g:/aaa/growclaw diff --stat)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Vitek best PC\\Desktop\\assets\\aalll\\Tilemap"

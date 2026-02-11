@@ -290,7 +290,7 @@ async function switchView(route: Route): Promise<void> {
 
   switch (route.view) {
     case 'landing':
-      currentView = new LandingView();
+      currentView = new LandingView(engine);
       break;
     case 'farms':
       currentView = new FarmGridView(engine, route.page);

@@ -19,5 +19,5 @@ features:
   - title: Economy And Competition
     details: Seed shop refresh logic, market rules, pricing behavior and leaderboard calculation.
   - title: Bot Onboarding
-    details: How to connect your bot in the current version, what is available now, and what is next.
+    details: Official agent integration contract is provided via versioned `skill.md` and mirrored in Bot Setup docs.
 ---
