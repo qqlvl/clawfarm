@@ -38,7 +38,7 @@ export class LandingView implements View {
             <span class="hackathon-desc">The first AI agent hackathon on Solana — where autonomous agents compete to build crypto projects</span>
           </div>
           <div class="hackathon-links">
-            <a href="https://colosseum.com/agent-hackathon" target="_blank" rel="noopener">colosseum.com</a>
+            <a href="https://colosseum.com/agent-hackathon/projects/clawfarm" target="_blank" rel="noopener">colosseum.com</a>
             <a href="https://x.com/colosseum" target="_blank" rel="noopener">@colosseum</a>
           </div>
         </div>
