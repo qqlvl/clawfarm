@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
-import { SimEngine } from '../lib/engine/sim.js'
-import type { SimState } from '../lib/engine/types.js'
+import { SimEngine } from './_engine/sim.js'
+import type { SimState } from './_engine/types.js'
 
 const SUPABASE_URL = process.env.SUPABASE_URL!
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY!
