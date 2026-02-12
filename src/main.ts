@@ -146,117 +146,20 @@ function updateSeasonBadge(): void {
   seasonBadge.className = `season-badge season-${s}`;
 }
 
-// Fetch initial state from Supabase with timeout
+// DEPRECATED: Direct Supabase queries are too slow (34s) when PostgREST is unhealthy
+// Now we always use /api/tick which works fast via server-side connection
 async function loadInitialState(): Promise<boolean> {
-  try {
-    // Add timeout to prevent infinite hang
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Supabase request timeout')), 8000)
-    );
-
-    const fetchPromise = supabase
-      .from('game_state')
-      .select('*')
-      .eq('id', 'main')
-      .single();
-
-    const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
-    if (error) throw error;
-
-    console.log('[Main] Raw Supabase response:', {
-      hasData: !!data,
-      hasState: !!data?.state,
-      tick: data?.tick,
-      stateTick: data?.state?.tick,
-      farms: data?.state?.farms?.length,
-      agents: data?.state?.agents?.length,
-      stateType: typeof data?.state,
-      stateKeys: data?.state ? Object.keys(data.state).join(', ') : 'null'
-    });
-
-    if (data && data.state) {
-      engine.updateState(data.state as SimState);
-      console.log('[Main] Loaded state from Supabase, tick:', data.state.tick);
-      needsFullRedraw = true;
-      updateSeasonBadge();
-      return true;
-    } else {
-      console.warn('[Main] No state data received from Supabase');
-      return false;
-    }
-  } catch (error) {
-    console.error('[Main] Failed to load initial state:', error);
-    return false;
-  }
+  console.log('[Main] Skipping direct Supabase query (PostgREST unhealthy)');
+  console.log('[Main] Will load state via /api/tick instead');
+  return false; // Always return false to trigger /api/tick
 }
 
-// Subscribe to realtime state updates
-let realtimeFetchTimeout: number | null = null;
-let lastRealtimeFetch = 0;
-const REALTIME_FETCH_COOLDOWN = 3000; // 3 sec cooldown
-
+// DEPRECATED: Realtime subscription disabled due to slow PostgREST
+// We rely entirely on /api/tick polling which works fast
 function subscribeToState(): void {
-  supabase
-    .channel('game-state-changes')
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'game_state',
-        filter: 'id=eq.main'
-      },
-      async (payload) => {
-        console.log('[Realtime] Update detected, tick:', payload.new.tick);
-
-        // Debounce: only fetch if last fetch was >3s ago
-        const now = Date.now();
-        if (now - lastRealtimeFetch < REALTIME_FETCH_COOLDOWN) {
-          console.log('[Realtime] Skipping fetch (cooldown)');
-          return;
-        }
-
-        lastRealtimeFetch = now;
-
-        // Realtime doesn't send JSONB columns - fetch full state manually with timeout
-        try {
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Realtime fetch timeout')), 5000)
-          );
-
-          const fetchPromise = supabase
-            .from('game_state')
-            .select('state')
-            .eq('id', 'main')
-            .single();
-
-          const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
-          if (error) {
-            console.error('[Realtime] Failed to fetch state:', error);
-            return;
-          }
-
-          if (data?.state) {
-            console.log('[Realtime] Fetched state:', {
-              tick: data.state.tick,
-              farms: data.state.farms?.length,
-              agents: data.state.agents?.length
-            });
-            engine.updateState(data.state as SimState);
-            needsFullRedraw = true;
-            updateSeasonBadge();
-          }
-        } catch (error) {
-          console.error('[Realtime] Fetch timeout or error:', error);
-          return;
-        }
-      }
-    )
-    .subscribe((status) => {
-      console.log('[Realtime] Subscription status:', status);
-    });
+  console.log('[Realtime] Subscription disabled - using /api/tick polling instead');
+  // Don't subscribe to realtime when PostgREST is unhealthy
+  // /api/tick polling is much faster and more reliable
 }
 
 // Trigger server tick (call /api/tick endpoint)
