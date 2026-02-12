@@ -16,6 +16,7 @@ const SEASON_ICONS: Record<string, string> = {
 export class LandingView implements View {
   private el: HTMLElement | null = null;
   private engine: SimEngine;
+  private tokenUpdateInterval: number | null = null;
 
   constructor(engine: SimEngine) {
     this.engine = engine;
@@ -308,6 +309,12 @@ export class LandingView implements View {
 
     // Initial stats
     this.updateLiveStats();
+
+    // Fetch token data
+    this.fetchTokenData();
+    this.tokenUpdateInterval = window.setInterval(() => {
+      this.fetchTokenData();
+    }, 30000); // Update every 30 seconds
   }
 
   update(fullRedraw?: boolean): void {
@@ -315,6 +322,10 @@ export class LandingView implements View {
   }
 
   unmount(): void {
+    if (this.tokenUpdateInterval !== null) {
+      clearInterval(this.tokenUpdateInterval);
+      this.tokenUpdateInterval = null;
+    }
     this.el?.remove();
     this.el = null;
   }
@@ -340,5 +351,93 @@ export class LandingView implements View {
       (sum: number, t: any) => sum + t.totalPrice, 0
     );
     setVal('volume', volume.toLocaleString());
+  }
+
+  private async fetchTokenData(): Promise<void> {
+    if (!this.el) return;
+
+    const addressInput = this.el.querySelector('.token-address') as HTMLInputElement;
+    if (!addressInput) return;
+
+    const tokenAddress = addressInput.value.trim();
+    if (!tokenAddress || tokenAddress === 'Coming soon...') return;
+
+    try {
+      const response = await fetch(
+        `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`
+      );
+
+      if (!response.ok) {
+        console.warn('[Token Data] DexScreener API error:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!data.pairs || data.pairs.length === 0) {
+        console.warn('[Token Data] No pairs found for token');
+        return;
+      }
+
+      // Find the main pair (highest liquidity)
+      const mainPair = data.pairs.reduce((best: any, current: any) => {
+        const bestLiq = best.liquidity?.usd || 0;
+        const currentLiq = current.liquidity?.usd || 0;
+        return currentLiq > bestLiq ? current : best;
+      }, data.pairs[0]);
+
+      this.updateTokenInfo({
+        price: mainPair.priceUsd,
+        marketCap: mainPair.marketCap || mainPair.fdv,
+        supply: mainPair.marketCap && mainPair.priceUsd
+          ? mainPair.marketCap / parseFloat(mainPair.priceUsd)
+          : null
+      });
+    } catch (error) {
+      console.error('[Token Data] Failed to fetch:', error);
+    }
+  }
+
+  private updateTokenInfo(data: { price?: string; marketCap?: number; supply?: number | null }): void {
+    if (!this.el) return;
+
+    const setTokenVal = (key: string, val: string) => {
+      const el = this.el!.querySelector(`[data-token="${key}"]`);
+      if (el) el.textContent = val;
+    };
+
+    // Price
+    if (data.price) {
+      const price = parseFloat(data.price);
+      setTokenVal('price', price < 0.01 ? `$${price.toExponential(2)}` : `$${price.toFixed(4)}`);
+    }
+
+    // Market Cap
+    if (data.marketCap) {
+      const mcap = data.marketCap;
+      if (mcap >= 1e6) {
+        setTokenVal('mcap', `$${(mcap / 1e6).toFixed(2)}M`);
+      } else if (mcap >= 1e3) {
+        setTokenVal('mcap', `$${(mcap / 1e3).toFixed(1)}K`);
+      } else {
+        setTokenVal('mcap', `$${mcap.toFixed(0)}`);
+      }
+    }
+
+    // Supply
+    if (data.supply) {
+      const supply = data.supply;
+      if (supply >= 1e9) {
+        setTokenVal('supply', `${(supply / 1e9).toFixed(2)}B`);
+      } else if (supply >= 1e6) {
+        setTokenVal('supply', `${(supply / 1e6).toFixed(2)}M`);
+      } else if (supply >= 1e3) {
+        setTokenVal('supply', `${(supply / 1e3).toFixed(1)}K`);
+      } else {
+        setTokenVal('supply', supply.toFixed(0));
+      }
+    }
+
+    // Holders - keep as "--" for now (DexScreener doesn't provide this)
   }
 }
