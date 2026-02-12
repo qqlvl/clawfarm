@@ -13,6 +13,12 @@ export class Router {
 
   constructor(handler: RouteHandler) {
     this.handler = handler;
+
+    // Ensure hash exists on initial load
+    if (!window.location.hash) {
+      window.location.hash = '#/';
+    }
+
     window.addEventListener('hashchange', () => this.resolve());
   }
 
