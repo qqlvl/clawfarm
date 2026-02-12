@@ -16,6 +16,7 @@ const SEASON_ICONS: Record<string, string> = {
 export class LandingView implements View {
   private el: HTMLElement | null = null;
   private engine: SimEngine;
+  private tokenUpdateInterval: number | null = null;
 
   constructor(engine: SimEngine) {
     this.engine = engine;
@@ -53,6 +54,22 @@ export class LandingView implements View {
           building a thriving ecosystem one tick at a time.
         </p>
 
+        <div class="token-contract">
+          <span class="token-label">$SEED</span>
+          <div class="token-address-wrap">
+            <input type="text" class="token-address" value="6SnD8zrYSypwtUdJgcHpmiRhahA96YSi1hXSxTrZpump" readonly />
+            <button class="token-btn token-copy" title="Copy address">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+              </svg>
+            </button>
+            <a href="https://pump.fun/coin/6SnD8zrYSypwtUdJgcHpmiRhahA96YSi1hXSxTrZpump" target="_blank" rel="noopener" class="token-btn token-pump" title="View on pump.fun">
+              pump.fun
+            </a>
+          </div>
+        </div>
+
         <div class="landing-buttons">
           <a href="#/farms" class="btn-primary">🌾 View Farms</a>
           <a href="#/shop" class="btn-secondary">🏪 Seed Shop</a>
@@ -88,6 +105,24 @@ export class LandingView implements View {
           <div class="live-stat">
             <span class="live-stat-value" data-stat="volume">0</span>
             <span class="live-stat-label">Volume ${COIN}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="token-info">
+        <div class="token-info-title">$SEED Token</div>
+        <div class="token-info-grid">
+          <div class="token-info-card">
+            <span class="token-info-value" data-token="price">--</span>
+            <span class="token-info-label">Price</span>
+          </div>
+          <div class="token-info-card">
+            <span class="token-info-value" data-token="mcap">--</span>
+            <span class="token-info-label">Market Cap</span>
+          </div>
+          <div class="token-info-card">
+            <span class="token-info-value" data-token="supply">--</span>
+            <span class="token-info-label">Supply</span>
           </div>
         </div>
       </div>
@@ -269,6 +304,12 @@ export class LandingView implements View {
 
     // Initial stats
     this.updateLiveStats();
+
+    // Fetch token data
+    this.fetchTokenData();
+    this.tokenUpdateInterval = window.setInterval(() => {
+      this.fetchTokenData();
+    }, 30000); // Update every 30 seconds
   }
 
   update(fullRedraw?: boolean): void {
@@ -276,6 +317,10 @@ export class LandingView implements View {
   }
 
   unmount(): void {
+    if (this.tokenUpdateInterval !== null) {
+      clearInterval(this.tokenUpdateInterval);
+      this.tokenUpdateInterval = null;
+    }
     this.el?.remove();
     this.el = null;
   }
@@ -301,5 +346,100 @@ export class LandingView implements View {
       (sum: number, t: any) => sum + t.totalPrice, 0
     );
     setVal('volume', volume.toLocaleString());
+  }
+
+  private async fetchTokenData(): Promise<void> {
+    if (!this.el) return;
+
+    const addressInput = this.el.querySelector('.token-address') as HTMLInputElement;
+    if (!addressInput) return;
+
+    const tokenAddress = addressInput.value.trim();
+    if (!tokenAddress || tokenAddress === 'Coming soon...') return;
+
+    try {
+      // Fetch DexScreener data
+      const dexResponse = await fetch(
+        `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`
+      );
+
+      if (!dexResponse.ok) {
+        console.warn('[Token Data] DexScreener API error:', dexResponse.status);
+        return;
+      }
+
+      const dexData = await dexResponse.json();
+
+      if (!dexData.pairs || dexData.pairs.length === 0) {
+        console.warn('[Token Data] No pairs found for token');
+        return;
+      }
+
+      // Find the main pair (highest liquidity)
+      const mainPair = dexData.pairs.reduce((best: any, current: any) => {
+        const bestLiq = best.liquidity?.usd || 0;
+        const currentLiq = current.liquidity?.usd || 0;
+        return currentLiq > bestLiq ? current : best;
+      }, dexData.pairs[0]);
+
+      this.updateTokenInfo({
+        price: mainPair.priceUsd,
+        marketCap: mainPair.marketCap || mainPair.fdv,
+        supply: mainPair.marketCap && mainPair.priceUsd
+          ? mainPair.marketCap / parseFloat(mainPair.priceUsd)
+          : null
+      });
+    } catch (error) {
+      console.error('[Token Data] Failed to fetch:', error);
+    }
+  }
+
+  private updateTokenInfo(data: { price?: string; marketCap?: number; supply?: number | null }): void {
+    if (!this.el) return;
+
+    const setTokenVal = (key: string, val: string) => {
+      const el = this.el!.querySelector(`[data-token="${key}"]`);
+      if (el) el.textContent = val;
+    };
+
+    // Price
+    if (data.price) {
+      const price = parseFloat(data.price);
+      if (price >= 1) {
+        setTokenVal('price', `$${price.toFixed(2)}`);
+      } else if (price >= 0.01) {
+        setTokenVal('price', `$${price.toFixed(4)}`);
+      } else if (price >= 0.0001) {
+        setTokenVal('price', `$${price.toFixed(6)}`);
+      } else {
+        setTokenVal('price', `$${price.toFixed(8)}`);
+      }
+    }
+
+    // Market Cap
+    if (data.marketCap) {
+      const mcap = data.marketCap;
+      if (mcap >= 1e6) {
+        setTokenVal('mcap', `$${(mcap / 1e6).toFixed(2)}M`);
+      } else if (mcap >= 1e3) {
+        setTokenVal('mcap', `$${(mcap / 1e3).toFixed(1)}K`);
+      } else {
+        setTokenVal('mcap', `$${mcap.toFixed(0)}`);
+      }
+    }
+
+    // Supply
+    if (data.supply) {
+      const supply = data.supply;
+      if (supply >= 1e9) {
+        setTokenVal('supply', `${(supply / 1e9).toFixed(2)}B`);
+      } else if (supply >= 1e6) {
+        setTokenVal('supply', `${(supply / 1e6).toFixed(2)}M`);
+      } else if (supply >= 1e3) {
+        setTokenVal('supply', `${(supply / 1e3).toFixed(1)}K`);
+      } else {
+        setTokenVal('supply', supply.toFixed(0));
+      }
+    }
   }
 }
