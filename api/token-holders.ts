@@ -1,7 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 
-const HELIUS_API_KEY = process.env.HELIUS_API_KEY || ''
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*')
@@ -22,96 +20,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing token parameter' })
   }
 
-  if (!HELIUS_API_KEY) {
-    console.warn('[Token Holders] HELIUS_API_KEY not configured')
-    return res.status(200).json({ holders: null })
-  }
-
   try {
-    // Use Helius RPC to get token supply info with timeout
+    // Use Birdeye API - free and works well for pump.fun tokens
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 4000) // 4s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5s timeout
 
     const response = await fetch(
-      `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
+      `https://public-api.birdeye.so/defi/token_overview?address=${token}`,
       {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getTokenLargestAccounts',
-          params: [token]
-        }),
+        headers: {
+          'Accept': 'application/json',
+          'X-API-KEY': 'public' // Birdeye public API
+        },
         signal: controller.signal
       }
     )
     clearTimeout(timeoutId)
 
     if (!response.ok) {
-      console.error('[Token Holders] Helius API error:', response.status)
+      console.error('[Token Holders] Birdeye API error:', response.status)
       return res.status(200).json({ holders: null })
     }
 
     const data = await response.json()
 
-    if (data.error) {
-      console.error('[Token Holders] RPC error:', data.error)
-      return res.status(200).json({ holders: null })
+    if (data.success && data.data?.holder) {
+      const holders = data.data.holder
+      console.log(`[Token Holders] Found ${holders} holders via Birdeye`)
+      return res.status(200).json({ holders })
     }
 
-    // Get actual holder count using getProgramAccounts with timeout
-    const accountsController = new AbortController()
-    const accountsTimeoutId = setTimeout(() => accountsController.abort(), 3000) // 3s timeout
-
-    const accountsResponse = await fetch(
-      `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'getProgramAccounts',
-          params: [
-            'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA', // SPL Token program
-            {
-              encoding: 'jsonParsed',
-              filters: [
-                { dataSize: 165 }, // Token account size
-                {
-                  memcmp: {
-                    offset: 0,
-                    bytes: token // Mint address
-                  }
-                }
-              ]
-            }
-          ]
-        }),
-        signal: accountsController.signal
-      }
-    )
-    clearTimeout(accountsTimeoutId)
-
-    const accountsData = await accountsResponse.json()
-
-    if (accountsData.error) {
-      console.error('[Token Holders] getProgramAccounts error:', accountsData.error)
-      // Fallback: return number of largest accounts as approximate
-      const largestAccounts = data.result?.value?.length || 0
-      return res.status(200).json({ holders: largestAccounts > 0 ? largestAccounts : null })
-    }
-
-    const accounts = accountsData.result || []
-
-    // Filter out accounts with 0 balance
-    const nonZeroAccounts = accounts.filter((acc: any) => {
-      const amount = acc.account?.data?.parsed?.info?.tokenAmount?.uiAmount
-      return amount && amount > 0
-    })
-
-    return res.status(200).json({ holders: nonZeroAccounts.length })
+    console.warn('[Token Holders] No holder data in Birdeye response')
+    return res.status(200).json({ holders: null })
   } catch (error) {
     console.error('[Token Holders] Error:', error)
     return res.status(200).json({ holders: null })
