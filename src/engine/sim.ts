@@ -14,7 +14,7 @@ const DEFAULT_CONFIG: SimConfig = {
   seasonLength: 360,
   eventChance: 0.003,
   startingCoins: 50,
-  startingSeeds: { wheat: 4 } // Reduced from 5 for slower progression
+  startingSeeds: { wheat: 6 } // Bootstrap market activity
 };
 
 const AGENT_EMOJIS = ['🧑', '👩‍🌾', '🧑', '🧑', '🧑'];

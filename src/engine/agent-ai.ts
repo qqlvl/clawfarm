@@ -181,7 +181,7 @@ export class AgentAI {
     const hasActiveSellOrder = state.market.orders.some(
       o => o.agentId === agent.id && o.type === 'sell'
     );
-    const hasEnoughSeeds = this.totalPlantableSeeds(agent, season) >= 8;
+    const hasEnoughSeeds = this.totalPlantableSeeds(agent, season) >= 6;
     const excessSeeds = this.findExcessSeeds(agent);
     if (excessSeeds && concurrentCrops > 0 && !hasActiveSellOrder && hasEnoughSeeds) {
       const marketSell = this.createMarketSellOrder(excessSeeds, 'seed', agent, season);

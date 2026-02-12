@@ -31,7 +31,7 @@ class RemoteSimEngine {
     seasonLength: 360,
     eventChance: 0.003,
     startingCoins: 50,
-    startingSeeds: { wheat: 5 }
+    startingSeeds: { wheat: 6 } // Match backend config
   };
 
   updateState(newState: SimState): void {
