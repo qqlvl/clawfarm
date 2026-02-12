@@ -146,14 +146,21 @@ function updateSeasonBadge(): void {
   seasonBadge.className = `season-badge season-${s}`;
 }
 
-// Fetch initial state from Supabase
+// Fetch initial state from Supabase with timeout
 async function loadInitialState(): Promise<void> {
   try {
-    const { data, error } = await supabase
+    // Add timeout to prevent infinite hang
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Supabase request timeout')), 8000)
+    );
+
+    const fetchPromise = supabase
       .from('game_state')
       .select('*')
       .eq('id', 'main')
       .single();
+
+    const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
 
     if (error) throw error;
 
@@ -178,6 +185,7 @@ async function loadInitialState(): Promise<void> {
     }
   } catch (error) {
     console.error('[Main] Failed to load initial state:', error);
+    // Continue anyway - app will work with empty state
   }
 }
 
@@ -209,27 +217,38 @@ function subscribeToState(): void {
 
         lastRealtimeFetch = now;
 
-        // Realtime doesn't send JSONB columns - fetch full state manually
-        const { data, error } = await supabase
-          .from('game_state')
-          .select('state')
-          .eq('id', 'main')
-          .single();
+        // Realtime doesn't send JSONB columns - fetch full state manually with timeout
+        try {
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Realtime fetch timeout')), 5000)
+          );
 
-        if (error) {
-          console.error('[Realtime] Failed to fetch state:', error);
+          const fetchPromise = supabase
+            .from('game_state')
+            .select('state')
+            .eq('id', 'main')
+            .single();
+
+          const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
+
+          if (error) {
+            console.error('[Realtime] Failed to fetch state:', error);
+            return;
+          }
+
+          if (data?.state) {
+            console.log('[Realtime] Fetched state:', {
+              tick: data.state.tick,
+              farms: data.state.farms?.length,
+              agents: data.state.agents?.length
+            });
+            engine.updateState(data.state as SimState);
+            needsFullRedraw = true;
+            updateSeasonBadge();
+          }
+        } catch (error) {
+          console.error('[Realtime] Fetch timeout or error:', error);
           return;
-        }
-
-        if (data?.state) {
-          console.log('[Realtime] Fetched state:', {
-            tick: data.state.tick,
-            farms: data.state.farms?.length,
-            agents: data.state.agents?.length
-          });
-          engine.updateState(data.state as SimState);
-          needsFullRedraw = true;
-          updateSeasonBadge();
         }
       }
     )
