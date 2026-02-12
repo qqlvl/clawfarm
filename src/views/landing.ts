@@ -113,16 +113,12 @@ export class LandingView implements View {
         <div class="token-info-title">$CF Token</div>
         <div class="token-info-grid">
           <div class="token-info-card">
-            <span class="token-info-value" data-token="mcap">--</span>
-            <span class="token-info-label">Market Cap</span>
-          </div>
-          <div class="token-info-card">
-            <span class="token-info-value" data-token="liquidity">--</span>
-            <span class="token-info-label">Liquidity</span>
-          </div>
-          <div class="token-info-card">
             <span class="token-info-value" data-token="price">--</span>
             <span class="token-info-label">Price</span>
+          </div>
+          <div class="token-info-card">
+            <span class="token-info-value" data-token="mcap">--</span>
+            <span class="token-info-label">Market Cap</span>
           </div>
           <div class="token-info-card">
             <span class="token-info-value" data-token="supply">--</span>
@@ -392,15 +388,14 @@ export class LandingView implements View {
         marketCap: mainPair.marketCap || mainPair.fdv,
         supply: mainPair.marketCap && mainPair.priceUsd
           ? mainPair.marketCap / parseFloat(mainPair.priceUsd)
-          : null,
-        liquidity: mainPair.liquidity?.usd
+          : null
       });
     } catch (error) {
       console.error('[Token Data] Failed to fetch:', error);
     }
   }
 
-  private updateTokenInfo(data: { price?: string; marketCap?: number; supply?: number | null; liquidity?: number | null }): void {
+  private updateTokenInfo(data: { price?: string; marketCap?: number; supply?: number | null }): void {
     if (!this.el) return;
 
     const setTokenVal = (key: string, val: string) => {
@@ -448,16 +443,5 @@ export class LandingView implements View {
       }
     }
 
-    // Liquidity
-    if (data.liquidity !== undefined && data.liquidity !== null) {
-      const liq = data.liquidity;
-      if (liq >= 1e6) {
-        setTokenVal('liquidity', `$${(liq / 1e6).toFixed(2)}M`);
-      } else if (liq >= 1e3) {
-        setTokenVal('liquidity', `$${(liq / 1e3).toFixed(1)}K`);
-      } else {
-        setTokenVal('liquidity', `$${liq.toFixed(0)}`);
-      }
-    }
   }
 }
