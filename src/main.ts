@@ -147,7 +147,7 @@ function updateSeasonBadge(): void {
 }
 
 // Fetch initial state from Supabase with timeout
-async function loadInitialState(): Promise<void> {
+async function loadInitialState(): Promise<boolean> {
   try {
     // Add timeout to prevent infinite hang
     const timeoutPromise = new Promise((_, reject) =>
@@ -180,12 +180,14 @@ async function loadInitialState(): Promise<void> {
       console.log('[Main] Loaded state from Supabase, tick:', data.state.tick);
       needsFullRedraw = true;
       updateSeasonBadge();
+      return true;
     } else {
       console.warn('[Main] No state data received from Supabase');
+      return false;
     }
   } catch (error) {
     console.error('[Main] Failed to load initial state:', error);
-    // Continue anyway - app will work with empty state
+    return false;
   }
 }
 
@@ -344,7 +346,14 @@ const router = new Router((route) => {
   // GIF loading now happens on-demand when rendering agents
   console.log('[Main] GIF sources loaded');
 
-  await loadInitialState();
+  const stateLoaded = await loadInitialState();
+
+  // If initial state failed to load, trigger a tick to create/fetch it
+  if (!stateLoaded) {
+    console.log('[Main] No initial state, triggering tick to create world...');
+    await triggerTick();
+  }
+
   subscribeToState();
   startLoops();
   updateSeasonBadge();
