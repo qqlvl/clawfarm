@@ -423,7 +423,15 @@ export class LandingView implements View {
     // Price
     if (data.price) {
       const price = parseFloat(data.price);
-      setTokenVal('price', price < 0.01 ? `$${price.toExponential(2)}` : `$${price.toFixed(4)}`);
+      if (price >= 1) {
+        setTokenVal('price', `$${price.toFixed(2)}`);
+      } else if (price >= 0.01) {
+        setTokenVal('price', `$${price.toFixed(4)}`);
+      } else if (price >= 0.0001) {
+        setTokenVal('price', `$${price.toFixed(6)}`);
+      } else {
+        setTokenVal('price', `$${price.toFixed(8)}`);
+      }
     }
 
     // Market Cap
