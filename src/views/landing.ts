@@ -363,42 +363,56 @@ export class LandingView implements View {
     if (!tokenAddress || tokenAddress === 'Coming soon...') return;
 
     try {
-      const response = await fetch(
+      // Fetch DexScreener data
+      const dexResponse = await fetch(
         `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`
       );
 
-      if (!response.ok) {
-        console.warn('[Token Data] DexScreener API error:', response.status);
+      if (!dexResponse.ok) {
+        console.warn('[Token Data] DexScreener API error:', dexResponse.status);
         return;
       }
 
-      const data = await response.json();
+      const dexData = await dexResponse.json();
 
-      if (!data.pairs || data.pairs.length === 0) {
+      if (!dexData.pairs || dexData.pairs.length === 0) {
         console.warn('[Token Data] No pairs found for token');
         return;
       }
 
       // Find the main pair (highest liquidity)
-      const mainPair = data.pairs.reduce((best: any, current: any) => {
+      const mainPair = dexData.pairs.reduce((best: any, current: any) => {
         const bestLiq = best.liquidity?.usd || 0;
         const currentLiq = current.liquidity?.usd || 0;
         return currentLiq > bestLiq ? current : best;
-      }, data.pairs[0]);
+      }, dexData.pairs[0]);
+
+      // Fetch holders count from our API
+      let holders: number | null = null;
+      try {
+        const holdersResponse = await fetch(`/api/token-holders?token=${tokenAddress}`);
+        if (holdersResponse.ok) {
+          const holdersData = await holdersResponse.json();
+          holders = holdersData.holders;
+        }
+      } catch (error) {
+        console.warn('[Token Data] Failed to fetch holders:', error);
+      }
 
       this.updateTokenInfo({
         price: mainPair.priceUsd,
         marketCap: mainPair.marketCap || mainPair.fdv,
         supply: mainPair.marketCap && mainPair.priceUsd
           ? mainPair.marketCap / parseFloat(mainPair.priceUsd)
-          : null
+          : null,
+        holders
       });
     } catch (error) {
       console.error('[Token Data] Failed to fetch:', error);
     }
   }
 
-  private updateTokenInfo(data: { price?: string; marketCap?: number; supply?: number | null }): void {
+  private updateTokenInfo(data: { price?: string; marketCap?: number; supply?: number | null; holders?: number | null }): void {
     if (!this.el) return;
 
     const setTokenVal = (key: string, val: string) => {
@@ -438,6 +452,16 @@ export class LandingView implements View {
       }
     }
 
-    // Holders - keep as "--" for now (DexScreener doesn't provide this)
+    // Holders
+    if (data.holders !== undefined && data.holders !== null) {
+      const holders = data.holders;
+      if (holders >= 1e6) {
+        setTokenVal('holders', `${(holders / 1e6).toFixed(2)}M`);
+      } else if (holders >= 1e3) {
+        setTokenVal('holders', `${(holders / 1e3).toFixed(1)}K`);
+      } else {
+        setTokenVal('holders', holders.toLocaleString());
+      }
+    }
   }
 }
