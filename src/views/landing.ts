@@ -117,8 +117,8 @@ export class LandingView implements View {
             <span class="token-info-label">Market Cap</span>
           </div>
           <div class="token-info-card">
-            <span class="token-info-value" data-token="holders">--</span>
-            <span class="token-info-label">Holders</span>
+            <span class="token-info-value" data-token="liquidity">--</span>
+            <span class="token-info-label">Liquidity</span>
           </div>
           <div class="token-info-card">
             <span class="token-info-value" data-token="price">--</span>
@@ -387,39 +387,20 @@ export class LandingView implements View {
         return currentLiq > bestLiq ? current : best;
       }, dexData.pairs[0]);
 
-      // Fetch holders count from our API with timeout
-      let holders: number | null = null;
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-
-        const holdersResponse = await fetch(`/api/token-holders?token=${tokenAddress}`, {
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (holdersResponse.ok) {
-          const holdersData = await holdersResponse.json();
-          holders = holdersData.holders;
-        }
-      } catch (error) {
-        console.warn('[Token Data] Failed to fetch holders:', error);
-      }
-
       this.updateTokenInfo({
         price: mainPair.priceUsd,
         marketCap: mainPair.marketCap || mainPair.fdv,
         supply: mainPair.marketCap && mainPair.priceUsd
           ? mainPair.marketCap / parseFloat(mainPair.priceUsd)
           : null,
-        holders
+        liquidity: mainPair.liquidity?.usd
       });
     } catch (error) {
       console.error('[Token Data] Failed to fetch:', error);
     }
   }
 
-  private updateTokenInfo(data: { price?: string; marketCap?: number; supply?: number | null; holders?: number | null }): void {
+  private updateTokenInfo(data: { price?: string; marketCap?: number; supply?: number | null; liquidity?: number | null }): void {
     if (!this.el) return;
 
     const setTokenVal = (key: string, val: string) => {
@@ -467,15 +448,15 @@ export class LandingView implements View {
       }
     }
 
-    // Holders
-    if (data.holders !== undefined && data.holders !== null) {
-      const holders = data.holders;
-      if (holders >= 1e6) {
-        setTokenVal('holders', `${(holders / 1e6).toFixed(2)}M`);
-      } else if (holders >= 1e3) {
-        setTokenVal('holders', `${(holders / 1e3).toFixed(1)}K`);
+    // Liquidity
+    if (data.liquidity !== undefined && data.liquidity !== null) {
+      const liq = data.liquidity;
+      if (liq >= 1e6) {
+        setTokenVal('liquidity', `$${(liq / 1e6).toFixed(2)}M`);
+      } else if (liq >= 1e3) {
+        setTokenVal('liquidity', `$${(liq / 1e3).toFixed(1)}K`);
       } else {
-        setTokenVal('holders', holders.toLocaleString());
+        setTokenVal('liquidity', `$${liq.toFixed(0)}`);
       }
     }
   }
