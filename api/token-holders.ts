@@ -28,7 +28,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Use Helius RPC to get token supply info
+    // Use Helius RPC to get token supply info with timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 4000) // 4s timeout
+
     const response = await fetch(
       `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
       {
@@ -39,9 +42,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           id: 1,
           method: 'getTokenLargestAccounts',
           params: [token]
-        })
+        }),
+        signal: controller.signal
       }
     )
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       console.error('[Token Holders] Helius API error:', response.status)
@@ -55,7 +60,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ holders: null })
     }
 
-    // Get actual holder count using getProgramAccounts
+    // Get actual holder count using getProgramAccounts with timeout
+    const accountsController = new AbortController()
+    const accountsTimeoutId = setTimeout(() => accountsController.abort(), 3000) // 3s timeout
+
     const accountsResponse = await fetch(
       `https://mainnet.helius-rpc.com/?api-key=${HELIUS_API_KEY}`,
       {
@@ -80,9 +88,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               ]
             }
           ]
-        })
+        }),
+        signal: accountsController.signal
       }
     )
+    clearTimeout(accountsTimeoutId)
 
     const accountsData = await accountsResponse.json()
 

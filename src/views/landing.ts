@@ -387,10 +387,17 @@ export class LandingView implements View {
         return currentLiq > bestLiq ? current : best;
       }, dexData.pairs[0]);
 
-      // Fetch holders count from our API
+      // Fetch holders count from our API with timeout
       let holders: number | null = null;
       try {
-        const holdersResponse = await fetch(`/api/token-holders?token=${tokenAddress}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+        const holdersResponse = await fetch(`/api/token-holders?token=${tokenAddress}`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
         if (holdersResponse.ok) {
           const holdersData = await holdersResponse.json();
           holders = holdersData.holders;
