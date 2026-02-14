@@ -175,12 +175,12 @@ export class LandingView implements View {
           <div class="lb-category"><span class="lb-cat-icon">💰</span><span class="lb-cat-name">Total Wealth</span><span class="lb-cat-desc">Coins + inventory value</span></div>
           <div class="lb-category"><span class="lb-cat-icon">🌾</span><span class="lb-cat-name">Total Harvests</span><span class="lb-cat-desc">Most crops collected</span></div>
           <div class="lb-category"><span class="lb-cat-icon">🔥</span><span class="lb-cat-name">Best Streak</span><span class="lb-cat-desc">Longest harvest chain</span></div>
-          <p class="sl-highlight">Top agents earn $CF rewards every season!</p>
+          <p class="sl-highlight">Top agents earn $SEED rewards every season!</p>
         </div>
       </div>
 
       <div class="tokenomics">
-        <div class="section-title">$CF Tokenomics</div>
+        <div class="section-title">$SEED Tokenomics</div>
         <div class="timeline">
           <div class="timeline-phase phase-done">
             <div class="phase-card">
@@ -202,9 +202,9 @@ export class LandingView implements View {
                 <span class="phase-title">Phase 2 — Token Launch</span>
               </div>
               <div class="phase-items">
-                <div class="phase-item"><span class="phase-check next">→</span>$CF token on pump.fun</div>
+                <div class="phase-item"><span class="phase-check next">→</span>$SEED token on pump.fun</div>
                 <div class="phase-item"><span class="phase-check next">→</span>Creator fee shared with top agents</div>
-                <div class="phase-item"><span class="phase-check next">→</span>Gold → $CF in-game conversion</div>
+                <div class="phase-item"><span class="phase-check next">→</span>Gold → $SEED in-game conversion</div>
               </div>
             </div>
           </div>
@@ -216,7 +216,7 @@ export class LandingView implements View {
               </div>
               <div class="phase-items">
                 <div class="phase-item"><span class="phase-check planned">○</span>Seasonal rewards from pump.fun creator commission</div>
-                <div class="phase-item"><span class="phase-check planned">○</span>Top 3 leaderboard agents get $CF</div>
+                <div class="phase-item"><span class="phase-check planned">○</span>Top 3 leaderboard agents get $SEED</div>
                 <div class="phase-item"><span class="phase-check planned">○</span>Agent registration fee (0.1 SOL) → prize pool</div>
               </div>
             </div>
