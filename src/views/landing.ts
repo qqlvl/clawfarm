@@ -16,7 +16,6 @@ const SEASON_ICONS: Record<string, string> = {
 export class LandingView implements View {
   private el: HTMLElement | null = null;
   private engine: SimEngine;
-  private tokenUpdateInterval: number | null = null;
 
   constructor(engine: SimEngine) {
     this.engine = engine;
@@ -89,24 +88,6 @@ export class LandingView implements View {
           <div class="live-stat">
             <span class="live-stat-value" data-stat="volume">0</span>
             <span class="live-stat-label">Volume ${COIN}</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="token-info">
-        <div class="token-info-title">$SEED Token</div>
-        <div class="token-info-grid">
-          <div class="token-info-card">
-            <span class="token-info-value" data-token="price">--</span>
-            <span class="token-info-label">Price</span>
-          </div>
-          <div class="token-info-card">
-            <span class="token-info-value" data-token="mcap">--</span>
-            <span class="token-info-label">Market Cap</span>
-          </div>
-          <div class="token-info-card">
-            <span class="token-info-value" data-token="supply">--</span>
-            <span class="token-info-label">Supply</span>
           </div>
         </div>
       </div>
@@ -258,24 +239,6 @@ export class LandingView implements View {
     `;
     container.appendChild(this.el);
 
-    // Copy-to-clipboard handler
-    const copyBtn = this.el.querySelector('.token-copy');
-    const addressInput = this.el.querySelector('.token-address') as HTMLInputElement;
-    if (copyBtn && addressInput) {
-      copyBtn.addEventListener('click', async () => {
-        const text = addressInput.value;
-        if (text === 'Coming soon...') return;
-        try {
-          await navigator.clipboard.writeText(text);
-          copyBtn.classList.add('copied');
-          setTimeout(() => copyBtn.classList.remove('copied'), 1500);
-        } catch {
-          addressInput.select();
-          document.execCommand('copy');
-        }
-      });
-    }
-
     // Dev reset handler
     const resetBtn = this.el.querySelector('#reset-world-btn');
     if (resetBtn) {
@@ -288,12 +251,6 @@ export class LandingView implements View {
 
     // Initial stats
     this.updateLiveStats();
-
-    // Fetch token data
-    this.fetchTokenData();
-    this.tokenUpdateInterval = window.setInterval(() => {
-      this.fetchTokenData();
-    }, 30000); // Update every 30 seconds
   }
 
   update(fullRedraw?: boolean): void {
@@ -301,10 +258,6 @@ export class LandingView implements View {
   }
 
   unmount(): void {
-    if (this.tokenUpdateInterval !== null) {
-      clearInterval(this.tokenUpdateInterval);
-      this.tokenUpdateInterval = null;
-    }
     this.el?.remove();
     this.el = null;
   }
@@ -330,96 +283,5 @@ export class LandingView implements View {
       (sum: number, t: any) => sum + t.totalPrice, 0
     );
     setVal('volume', volume.toLocaleString());
-  }
-
-  private async fetchTokenData(): Promise<void> {
-    if (!this.el) return;
-
-    const tokenAddress = '6SnD8zrYSypwtUdJgcHpmiRhahA96YSi1hXSxTrZpump';
-
-    try {
-      // Fetch DexScreener data
-      const dexResponse = await fetch(
-        `https://api.dexscreener.com/latest/dex/tokens/${tokenAddress}`
-      );
-
-      if (!dexResponse.ok) {
-        console.warn('[Token Data] DexScreener API error:', dexResponse.status);
-        return;
-      }
-
-      const dexData = await dexResponse.json();
-
-      if (!dexData.pairs || dexData.pairs.length === 0) {
-        console.warn('[Token Data] No pairs found for token');
-        return;
-      }
-
-      // Find the main pair (highest liquidity)
-      const mainPair = dexData.pairs.reduce((best: any, current: any) => {
-        const bestLiq = best.liquidity?.usd || 0;
-        const currentLiq = current.liquidity?.usd || 0;
-        return currentLiq > bestLiq ? current : best;
-      }, dexData.pairs[0]);
-
-      this.updateTokenInfo({
-        price: mainPair.priceUsd,
-        marketCap: mainPair.marketCap || mainPair.fdv,
-        supply: mainPair.marketCap && mainPair.priceUsd
-          ? mainPair.marketCap / parseFloat(mainPair.priceUsd)
-          : null
-      });
-    } catch (error) {
-      console.error('[Token Data] Failed to fetch:', error);
-    }
-  }
-
-  private updateTokenInfo(data: { price?: string; marketCap?: number; supply?: number | null }): void {
-    if (!this.el) return;
-
-    const setTokenVal = (key: string, val: string) => {
-      const el = this.el!.querySelector(`[data-token="${key}"]`);
-      if (el) el.textContent = val;
-    };
-
-    // Price
-    if (data.price) {
-      const price = parseFloat(data.price);
-      if (price >= 1) {
-        setTokenVal('price', `$${price.toFixed(2)}`);
-      } else if (price >= 0.01) {
-        setTokenVal('price', `$${price.toFixed(4)}`);
-      } else if (price >= 0.0001) {
-        setTokenVal('price', `$${price.toFixed(6)}`);
-      } else {
-        setTokenVal('price', `$${price.toFixed(8)}`);
-      }
-    }
-
-    // Market Cap
-    if (data.marketCap) {
-      const mcap = data.marketCap;
-      if (mcap >= 1e6) {
-        setTokenVal('mcap', `$${(mcap / 1e6).toFixed(2)}M`);
-      } else if (mcap >= 1e3) {
-        setTokenVal('mcap', `$${(mcap / 1e3).toFixed(1)}K`);
-      } else {
-        setTokenVal('mcap', `$${mcap.toFixed(0)}`);
-      }
-    }
-
-    // Supply
-    if (data.supply) {
-      const supply = data.supply;
-      if (supply >= 1e9) {
-        setTokenVal('supply', `${(supply / 1e9).toFixed(2)}B`);
-      } else if (supply >= 1e6) {
-        setTokenVal('supply', `${(supply / 1e6).toFixed(2)}M`);
-      } else if (supply >= 1e3) {
-        setTokenVal('supply', `${(supply / 1e3).toFixed(1)}K`);
-      } else {
-        setTokenVal('supply', supply.toFixed(0));
-      }
-    }
   }
 }
